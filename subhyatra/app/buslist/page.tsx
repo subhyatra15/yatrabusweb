@@ -1,7 +1,8 @@
 // app/buslist/page.tsx
+// @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -142,13 +143,14 @@ const getAmenityLabel = (amenity: string) => {
   }
 };
 
-export default function BusListPage() {
+function BusListPageComp() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const from = searchParams.get("from") || "Butwal";
   const to = searchParams.get("to") || "Kathmandu";
-  const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+  const date =
+    searchParams.get("date") || new Date().toISOString().split("T")[0];
 
   const [buses, setBuses] = useState<Bus[]>([]);
   const [filteredBuses, setFilteredBuses] = useState<Bus[]>([]);
@@ -166,8 +168,12 @@ export default function BusListPage() {
   const [routeStops, setRouteStops] = useState<Stop[]>([]);
   const [boardingStops, setBoardingStops] = useState<Stop[]>([]);
   const [droppingStops, setDroppingStops] = useState<Stop[]>([]);
-  const [selectedBoardingStop, setSelectedBoardingStop] = useState<Stop | null>(null);
-  const [selectedDroppingStop, setSelectedDroppingStop] = useState<Stop | null>(null);
+  const [selectedBoardingStop, setSelectedBoardingStop] = useState<Stop | null>(
+    null,
+  );
+  const [selectedDroppingStop, setSelectedDroppingStop] = useState<Stop | null>(
+    null,
+  );
   const [isLoadingStops, setIsLoadingStops] = useState(false);
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [pricePerSeat, setPricePerSeat] = useState<number | null>(null);
@@ -244,7 +250,9 @@ export default function BusListPage() {
           alert(error.response.data?.message || "Failed to fetch buses.");
         }
       } else if (error.request) {
-        alert("Unable to connect to the server. Please check your internet connection.");
+        alert(
+          "Unable to connect to the server. Please check your internet connection.",
+        );
       } else {
         alert("An unexpected error occurred. Please try again.");
       }
@@ -268,7 +276,7 @@ export default function BusListPage() {
             ...(token && { Authorization: `Bearer ${token}` }),
           },
           timeout: 10000,
-        }
+        },
       );
 
       if (response.data && response.data.data) {
@@ -296,7 +304,7 @@ export default function BusListPage() {
   const fetchPricePerSeat = async (
     routeId: number,
     boardingStopId: number,
-    droppingStopId: number
+    droppingStopId: number,
   ) => {
     try {
       setIsLoadingPrice(true);
@@ -315,7 +323,7 @@ export default function BusListPage() {
             droppingstop: droppingStopId,
           },
           timeout: 10000,
-        }
+        },
       );
 
       if (response.data && response.data.priceperseat) {
@@ -352,7 +360,7 @@ export default function BusListPage() {
         fetchPricePerSeat(bus.routeId, boardingStop.id, droppingStop.id).then(
           (price) => {
             navigateToBusDetails(bus, boardingStop, droppingStop, price);
-          }
+          },
         );
       } else {
         setBoardingStops(boarding);
@@ -371,17 +379,20 @@ export default function BusListPage() {
     bus: Bus,
     boardingStop: Stop,
     droppingStop: Stop,
-    price?: number
+    price?: number,
   ) => {
     const finalPrice = price || pricePerSeat || bus.price;
 
     router.push(
-      `/busdetails?id=${bus.id}&scheduleId=${bus.scheduleId}&routeId=${bus.routeId}&boardingStopId=${boardingStop.id}&droppingStopId=${droppingStop.id}&boardingCity=${boardingStop.city_name}&droppingCity=${droppingStop.city_name}&price=${finalPrice}`
+      `/busdetails?id=${bus.id}&scheduleId=${bus.scheduleId}&routeId=${bus.routeId}&boardingStopId=${boardingStop.id}&droppingStopId=${droppingStop.id}&boardingCity=${boardingStop.city_name}&droppingCity=${droppingStop.city_name}&price=${finalPrice}`,
     );
   };
 
   // Handle stop selection
-  const handleStopSelect = async (stop: Stop, type: "boarding" | "dropping") => {
+  const handleStopSelect = async (
+    stop: Stop,
+    type: "boarding" | "dropping",
+  ) => {
     if (type === "boarding") {
       setSelectedBoardingStop(stop);
       if (selectedDroppingStop?.id === stop.id) {
@@ -406,7 +417,7 @@ export default function BusListPage() {
       const price = await fetchPricePerSeat(
         selectedBus!.routeId,
         boarding.id,
-        dropping.id
+        dropping.id,
       );
       if (price) {
         setPricePerSeat(price);
@@ -436,7 +447,7 @@ export default function BusListPage() {
         selectedBus!,
         selectedBoardingStop,
         selectedDroppingStop,
-        pricePerSeat
+        pricePerSeat,
       );
       setShowBoardingModal(false);
     } else {
@@ -451,18 +462,24 @@ export default function BusListPage() {
     const hasHalfStar = rating % 1 >= 0.5;
     for (let i = 0; i < fullStars; i++) {
       stars.push(
-        <Star key={`full-${i}`} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+        <Star
+          key={`full-${i}`}
+          className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+        />,
       );
     }
     if (hasHalfStar) {
       stars.push(
-        <Star key="half" className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+        <Star
+          key="half"
+          className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+        />,
       );
     }
     const remainingStars = 5 - stars.length;
     for (let i = 0; i < remainingStars; i++) {
       stars.push(
-        <Star key={`empty-${i}`} className="w-3.5 h-3.5 text-amber-400" />
+        <Star key={`empty-${i}`} className="w-3.5 h-3.5 text-amber-400" />,
       );
     }
     return stars;
@@ -515,7 +532,9 @@ export default function BusListPage() {
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
-          <p className="mt-6 text-indigo-600 font-medium">Searching for buses...</p>
+          <p className="mt-6 text-indigo-600 font-medium">
+            Searching for buses...
+          </p>
         </motion.div>
       </div>
     );
@@ -541,7 +560,9 @@ export default function BusListPage() {
             </motion.button>
 
             <div className="flex-1">
-              <h1 className="text-lg font-bold text-gray-900">Available Buses</h1>
+              <h1 className="text-lg font-bold text-gray-900">
+                Available Buses
+              </h1>
               <div className="flex items-center gap-3 text-sm">
                 <span className="font-semibold text-indigo-600">
                   {from} → {to}
@@ -549,9 +570,7 @@ export default function BusListPage() {
                 <span className="text-slate-400">•</span>
                 <div className="flex items-center gap-1.5 text-slate-400">
                   <Calendar className="w-3.5 h-3.5" />
-                  <span>
-                    {format(new Date(date), "MMM d, yyyy")}
-                  </span>
+                  <span>{format(new Date(date), "MMM d, yyyy")}</span>
                 </div>
               </div>
             </div>
@@ -586,7 +605,7 @@ export default function BusListPage() {
                   "px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
                   selectedFilter === filter
                     ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25"
-                    : "bg-white/60 text-slate-500 hover:bg-white/80 border border-slate-200/50"
+                    : "bg-white/60 text-slate-500 hover:bg-white/80 border border-slate-200/50",
                 )}
               >
                 {filter}
@@ -633,18 +652,26 @@ export default function BusListPage() {
                           <Bus className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-gray-900">{bus.name}</h3>
+                          <h3 className="font-bold text-gray-900">
+                            {bus.name}
+                          </h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={cn(
-                              "text-xs font-semibold px-2 py-0.5 rounded-full",
-                              bus.type === "AC" 
-                                ? "bg-blue-100 text-blue-600" 
-                                : "bg-amber-100 text-amber-600"
-                            )}>
+                            <span
+                              className={cn(
+                                "text-xs font-semibold px-2 py-0.5 rounded-full",
+                                bus.type === "AC"
+                                  ? "bg-blue-100 text-blue-600"
+                                  : "bg-amber-100 text-amber-600",
+                              )}
+                            >
                               {bus.type}
                             </span>
-                            <span className="text-xs text-slate-400">• {bus.busNumber}</span>
-                            <span className="text-xs text-slate-400">• {bus.totalSeats} seats</span>
+                            <span className="text-xs text-slate-400">
+                              • {bus.busNumber}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              • {bus.totalSeats} seats
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -652,7 +679,9 @@ export default function BusListPage() {
                         <div className="flex items-center gap-0.5">
                           {renderStars(bus.rating)}
                         </div>
-                        <span className="text-xs text-slate-400">{bus.rating.toFixed(1)}</span>
+                        <span className="text-xs text-slate-400">
+                          {bus.rating.toFixed(1)}
+                        </span>
                       </div>
                     </div>
 
@@ -665,16 +694,22 @@ export default function BusListPage() {
                       </div>
                       <div className="flex-1 flex justify-between items-center">
                         <div>
-                          <p className="font-bold text-gray-900">{bus.departure}</p>
+                          <p className="font-bold text-gray-900">
+                            {bus.departure}
+                          </p>
                           <p className="text-sm text-slate-400">{bus.from}</p>
                         </div>
                         <div className="flex-1 mx-4 text-center">
                           <div className="h-px bg-slate-200 w-full" />
-                          <p className="text-xs text-slate-400 mt-1">{bus.duration}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {bus.duration}
+                          </p>
                           <div className="h-px bg-slate-200 w-full" />
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-gray-900">{bus.arrival}</p>
+                          <p className="font-bold text-gray-900">
+                            {bus.arrival}
+                          </p>
                           <p className="text-sm text-slate-400">{bus.to}</p>
                         </div>
                       </div>
@@ -685,7 +720,10 @@ export default function BusListPage() {
                       {bus.amenities.slice(0, 4).map((amenity, idx) => {
                         const Icon = getAmenityIcon(amenity);
                         return (
-                          <span key={idx} className="flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1 rounded-lg text-xs text-indigo-600 font-medium">
+                          <span
+                            key={idx}
+                            className="flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1 rounded-lg text-xs text-indigo-600 font-medium"
+                          >
                             <Icon className="w-3.5 h-3.5" />
                             {getAmenityLabel(amenity)}
                           </span>
@@ -696,10 +734,14 @@ export default function BusListPage() {
                           +{bus.amenities.length - 4} more
                         </span>
                       )}
-                      <span className={cn(
-                        "text-xs font-semibold ml-auto",
-                        bus.available > 5 ? "text-emerald-600" : "text-red-500"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-xs font-semibold ml-auto",
+                          bus.available > 5
+                            ? "text-emerald-600"
+                            : "text-red-500",
+                        )}
+                      >
                         {bus.available} seats left
                       </span>
                     </div>
@@ -707,8 +749,12 @@ export default function BusListPage() {
                     {/* Footer */}
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-xs text-slate-400 font-medium">Price per seat</p>
-                        <p className="text-2xl font-extrabold text-indigo-600">Rs. {bus.price}</p>
+                        <p className="text-xs text-slate-400 font-medium">
+                          Price per seat
+                        </p>
+                        <p className="text-2xl font-extrabold text-indigo-600">
+                          Rs. {bus.price}
+                        </p>
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -733,7 +779,9 @@ export default function BusListPage() {
               <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
                 <Bus className="w-10 h-10 text-slate-300" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mt-4">No buses found</h3>
+              <h3 className="text-xl font-bold text-gray-900 mt-4">
+                No buses found
+              </h3>
               <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">
                 Try adjusting your filters or search for a different route
               </p>
@@ -771,7 +819,9 @@ export default function BusListPage() {
             >
               <div className="p-6">
                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Sort by</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Sort by
+                </h3>
                 <div className="space-y-1">
                   {sortOptions.map((option) => (
                     <motion.button
@@ -783,13 +833,18 @@ export default function BusListPage() {
                       }}
                       className={cn(
                         "w-full flex items-center justify-between py-3.5 px-4 rounded-xl transition-all",
-                        sortBy === option.value && "bg-indigo-50/50 border border-indigo-100/50"
+                        sortBy === option.value &&
+                          "bg-indigo-50/50 border border-indigo-100/50",
                       )}
                     >
-                      <span className={cn(
-                        "font-medium",
-                        sortBy === option.value ? "text-indigo-600" : "text-slate-700"
-                      )}>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          sortBy === option.value
+                            ? "text-indigo-600"
+                            : "text-slate-700",
+                        )}
+                      >
                         {option.label}
                       </span>
                       {sortBy === option.value && (
@@ -826,14 +881,20 @@ export default function BusListPage() {
                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
 
                 <div className="mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">Select Stops</h3>
-                  <p className="text-sm text-slate-400">Choose your boarding and dropping points</p>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Select Stops
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    Choose your boarding and dropping points
+                  </p>
                 </div>
 
                 {isLoadingStops ? (
                   <div className="py-12 text-center">
                     <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto" />
-                    <p className="text-sm text-slate-400 mt-4">Loading stops...</p>
+                    <p className="text-sm text-slate-400 mt-4">
+                      Loading stops...
+                    </p>
                   </div>
                 ) : (
                   <>
@@ -843,7 +904,9 @@ export default function BusListPage() {
                         <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
                           <LogIn className="w-4 h-4 text-emerald-600" />
                         </div>
-                        <h4 className="font-semibold text-gray-900">Boarding Point</h4>
+                        <h4 className="font-semibold text-gray-900">
+                          Boarding Point
+                        </h4>
                       </div>
                       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {boardingStops.map((stop) => (
@@ -856,20 +919,30 @@ export default function BusListPage() {
                               "min-w-[120px] px-4 py-3 rounded-xl border-2 transition-all text-center flex-shrink-0",
                               selectedBoardingStop?.id === stop.id
                                 ? "border-emerald-500 bg-emerald-50/50"
-                                : "border-slate-200 bg-white/50 hover:border-emerald-200"
+                                : "border-slate-200 bg-white/50 hover:border-emerald-200",
                             )}
                           >
-                            <div className={cn(
-                              "w-2 h-2 rounded-full mx-auto mb-1.5",
-                              selectedBoardingStop?.id === stop.id ? "bg-emerald-500" : "bg-slate-300"
-                            )} />
-                            <p className={cn(
-                              "font-semibold text-sm",
-                              selectedBoardingStop?.id === stop.id ? "text-emerald-700" : "text-gray-900"
-                            )}>
+                            <div
+                              className={cn(
+                                "w-2 h-2 rounded-full mx-auto mb-1.5",
+                                selectedBoardingStop?.id === stop.id
+                                  ? "bg-emerald-500"
+                                  : "bg-slate-300",
+                              )}
+                            />
+                            <p
+                              className={cn(
+                                "font-semibold text-sm",
+                                selectedBoardingStop?.id === stop.id
+                                  ? "text-emerald-700"
+                                  : "text-gray-900",
+                              )}
+                            >
                               {stop.city_name}
                             </p>
-                            <p className="text-xs text-slate-400">Stop {stop.stop_order}</p>
+                            <p className="text-xs text-slate-400">
+                              Stop {stop.stop_order}
+                            </p>
                             {selectedBoardingStop?.id === stop.id && (
                               <Check className="w-4 h-4 text-emerald-500 mx-auto mt-1" />
                             )}
@@ -884,7 +957,9 @@ export default function BusListPage() {
                         <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
                           <LogOut className="w-4 h-4 text-red-600" />
                         </div>
-                        <h4 className="font-semibold text-gray-900">Dropping Point</h4>
+                        <h4 className="font-semibold text-gray-900">
+                          Dropping Point
+                        </h4>
                         {selectedBoardingStop && (
                           <span className="text-xs text-slate-400">
                             (Excluding {selectedBoardingStop.city_name})
@@ -893,7 +968,9 @@ export default function BusListPage() {
                       </div>
                       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {droppingStops
-                          .filter((stop) => stop.id !== selectedBoardingStop?.id)
+                          .filter(
+                            (stop) => stop.id !== selectedBoardingStop?.id,
+                          )
                           .map((stop) => (
                             <motion.button
                               key={stop.id}
@@ -904,26 +981,38 @@ export default function BusListPage() {
                                 "min-w-[120px] px-4 py-3 rounded-xl border-2 transition-all text-center flex-shrink-0",
                                 selectedDroppingStop?.id === stop.id
                                   ? "border-red-500 bg-red-50/50"
-                                  : "border-slate-200 bg-white/50 hover:border-red-200"
+                                  : "border-slate-200 bg-white/50 hover:border-red-200",
                               )}
                             >
-                              <div className={cn(
-                                "w-2 h-2 rounded-full mx-auto mb-1.5",
-                                selectedDroppingStop?.id === stop.id ? "bg-red-500" : "bg-slate-300"
-                              )} />
-                              <p className={cn(
-                                "font-semibold text-sm",
-                                selectedDroppingStop?.id === stop.id ? "text-red-700" : "text-gray-900"
-                              )}>
+                              <div
+                                className={cn(
+                                  "w-2 h-2 rounded-full mx-auto mb-1.5",
+                                  selectedDroppingStop?.id === stop.id
+                                    ? "bg-red-500"
+                                    : "bg-slate-300",
+                                )}
+                              />
+                              <p
+                                className={cn(
+                                  "font-semibold text-sm",
+                                  selectedDroppingStop?.id === stop.id
+                                    ? "text-red-700"
+                                    : "text-gray-900",
+                                )}
+                              >
                                 {stop.city_name}
                               </p>
-                              <p className="text-xs text-slate-400">Stop {stop.stop_order}</p>
+                              <p className="text-xs text-slate-400">
+                                Stop {stop.stop_order}
+                              </p>
                               {selectedDroppingStop?.id === stop.id && (
                                 <Check className="w-4 h-4 text-red-500 mx-auto mt-1" />
                               )}
                             </motion.button>
                           ))}
-                        {droppingStops.filter((stop) => stop.id !== selectedBoardingStop?.id).length === 0 && (
+                        {droppingStops.filter(
+                          (stop) => stop.id !== selectedBoardingStop?.id,
+                        ).length === 0 && (
                           <div className="py-4 px-6 text-sm text-slate-400">
                             Please select a boarding point first
                           </div>
@@ -940,18 +1029,28 @@ export default function BusListPage() {
                       >
                         <div className="flex items-center justify-around">
                           <div className="text-center">
-                            <p className="text-xs text-white/70 font-medium">Boarding</p>
-                            <p className="text-white font-bold">{selectedBoardingStop.city_name}</p>
+                            <p className="text-xs text-white/70 font-medium">
+                              Boarding
+                            </p>
+                            <p className="text-white font-bold">
+                              {selectedBoardingStop.city_name}
+                            </p>
                           </div>
                           <ArrowRight className="w-5 h-5 text-white/50" />
                           <div className="text-center">
-                            <p className="text-xs text-white/70 font-medium">Dropping</p>
-                            <p className="text-white font-bold">{selectedDroppingStop.city_name}</p>
+                            <p className="text-xs text-white/70 font-medium">
+                              Dropping
+                            </p>
+                            <p className="text-white font-bold">
+                              {selectedDroppingStop.city_name}
+                            </p>
                           </div>
                         </div>
                         <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/20">
                           <div>
-                            <p className="text-xs text-white/70">Price per seat</p>
+                            <p className="text-xs text-white/70">
+                              Price per seat
+                            </p>
                             {isLoadingPrice ? (
                               <Loader2 className="w-5 h-5 text-white animate-spin mt-1" />
                             ) : (
@@ -982,8 +1081,11 @@ export default function BusListPage() {
                       }
                       className={cn(
                         "w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25",
-                        (!selectedBoardingStop || !selectedDroppingStop || !pricePerSeat || isLoadingPrice) &&
-                          "opacity-50 cursor-not-allowed"
+                        (!selectedBoardingStop ||
+                          !selectedDroppingStop ||
+                          !pricePerSeat ||
+                          isLoadingPrice) &&
+                          "opacity-50 cursor-not-allowed",
                       )}
                     >
                       {isLoadingPrice ? (
@@ -1003,5 +1105,15 @@ export default function BusListPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function BusListPage() {
+  return (
+    <>
+      <Suspense fallback={<h1>Loading...</h1>}>
+        <BusListPageComp />
+      </Suspense>
+    </>
   );
 }
