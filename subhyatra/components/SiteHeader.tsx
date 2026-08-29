@@ -36,10 +36,10 @@ export default function SiteHeader() {
           </span>
           <div className="leading-none">
             <p className="font-display text-xl text-paper tracking-tight">
-              Subh<span className="text-marigold">Yatra</span>
+              Yatra<span className="text-marigold">Bus</span>
             </p>
             <p className="text-[10px] uppercase tracking-[0.18em] text-mist mt-0.5">
-              शुभ यात्रा · safe travels
+              यात्रा बस · safe travels
             </p>
           </div>
         </Link>

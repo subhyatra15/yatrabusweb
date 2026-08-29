@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   title: "YatraBus — Book Bus Tickets Across Nepal",
   description:
     "Search, compare and book bus tickets across Nepal. Real seat maps, instant e-tickets, safe यात्रा.",
+  icons:{
+    icon:'./eticketlogo.jepg'
+  }
 };
 
 export default function RootLayout({
