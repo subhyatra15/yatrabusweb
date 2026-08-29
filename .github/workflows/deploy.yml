@@ -1,29 +1,27 @@
-name: Test SSH Secret
+name: YatraBusWeb
 
 on:
   push:
     branches:
       - main
-
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check SSH key format
-        env:
-          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          echo "Length: ${#SSH_KEY}"
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /root/yatrabusweb/yatrabusweb/subhyatra
 
-          if [[ "$SSH_KEY" == "-----BEGIN OPENSSH PRIVATE KEY-----"* ]]; then
-            echo "Correct beginning"
-          else
-            echo "Wrong beginning"
-          fi
+            git pull origin main
 
-          if [[ "$SSH_KEY" == *"-----END OPENSSH PRIVATE KEY-----" ]]; then
-            echo "Correct ending"
-          else
-            echo "Wrong ending"
-          fi
+            npm install
+
+            npm run build
+
+            pm2 restart yatrabusweb
