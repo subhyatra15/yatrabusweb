@@ -66,7 +66,7 @@ export default function SiteHeader() {
         </nav>
 
         {/* Desktop sign in */}
-        <div className="hidden md:block shrink-0">
+        <div onClick={()=> router.push("/signin")} className="hidden md:block shrink-0">
           <button className="rounded-full bg-marigold text-night font-semibold px-4 py-2 text-sm hover:bg-marigold-2 transition-colors">
             Sign in
           </button>

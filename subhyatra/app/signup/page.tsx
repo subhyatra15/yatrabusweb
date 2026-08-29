@@ -108,7 +108,7 @@ export default function RegisterPage() {
           "Registration Successful! 🎉",
           "Your account has been created successfully. Welcome to SubhYatra!"
         );
-        router.push("/login");
+        router.push("/signin");
       } else {
         alert(
           "Registration Failed",
