@@ -1,26 +1,17 @@
-name: Test SSH Secret
+- name: Check SSH key format
+  env:
+    SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+  run: |
+    echo "Length: ${#SSH_KEY}"
 
-on:
-  push:
-    branches:
-      - main
+    if [[ "$SSH_KEY" == "-----BEGIN OPENSSH PRIVATE KEY-----"* ]]; then
+      echo "✅ Correct beginning"
+    else
+      echo "❌ Wrong beginning"
+    fi
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check SSH secret
-        env:
-          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          if [ -z "$SSH_KEY" ]; then
-            echo "❌ SERVER_SSH_KEY IS EMPTY"
-            exit 1
-          fi
-
-          echo "✅ SERVER_SSH_KEY EXISTS"
-          echo "Number of characters: ${#SSH_KEY}"
-
-          echo "$SSH_KEY" | head -n 1
-          echo "$SSH_KEY" | tail -n 1
+    if [[ "$SSH_KEY" == *"-----END OPENSSH PRIVATE KEY-----" ]]; then
+      echo "✅ Correct ending"
+    else
+      echo "❌ Wrong ending"
+    fi
