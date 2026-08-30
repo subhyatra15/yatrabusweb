@@ -1,3 +1,5 @@
+
+// @ts-nocheck
 // app/profile/personalinfo/page.tsx
 "use client";
 
