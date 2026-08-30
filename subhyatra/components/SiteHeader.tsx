@@ -20,8 +20,7 @@ import Image from "next/image";
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/tickets", label: "Tickets", icon: TicketPercent },
-  { href: "/track", label: "Track", icon: MapPinned },
-  { href: "/profile", label: "Profile", icon: CircleUserRound },
+  { href: "/track", label: "Track", icon: MapPinned }
 ];
 
 export default function SiteHeader() {
@@ -69,9 +68,9 @@ export default function SiteHeader() {
         </nav>
 
         {/* Desktop sign in */}
-        <div onClick={()=> router.push("/signin")} className="hidden md:block shrink-0">
+        <div onClick={()=> router.push("/profile")} className="hidden md:block shrink-0">
           <button className="rounded-full bg-marigold text-night font-semibold px-4 py-2 text-sm hover:bg-marigold-2 transition-colors">
-            Sign in
+            Profile
           </button>
         </div>
 
@@ -116,10 +115,10 @@ export default function SiteHeader() {
             );
           })}
           <button onClick={()=> {
-            router.push("/signin")
+            router.push("/profile")
             setOpen(false)
           }} className="mt-2 rounded-full bg-marigold text-night font-semibold px-4 py-2.5 text-sm hover:bg-marigold-2 transition-colors">
-            Sign in
+            Profile
           </button>
         </nav>
       </div>
