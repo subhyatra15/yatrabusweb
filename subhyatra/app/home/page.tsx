@@ -2,7 +2,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -103,6 +103,9 @@ export default function HomePage() {
   const [searchType, setSearchType] = useState<"from" | "to">("from");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<City[]>([]);
+
+  // Date input ref
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Greeting
   const [greeting, setGreeting] = useState("Good Morning");
@@ -386,6 +389,15 @@ export default function HomePage() {
     setShowSearchModal(true);
   };
 
+  // Handle date change from native input
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value;
+    if (dateValue) {
+      const selectedDate = new Date(dateValue);
+      setDate(selectedDate);
+    }
+  };
+
   // Handle search
   const handleSearch = () => {
     if (!from || !to) {
@@ -422,14 +434,14 @@ export default function HomePage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <Bus className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
@@ -525,7 +537,7 @@ export default function HomePage() {
               <h2 className="text-xl font-bold text-gray-900">Plan your trip</h2>
               <p className="text-sm text-gray-500">Find the best vehicles for your journey</p>
             </div>
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-1.5 rounded-full border border-indigo-100/50">
+            <div className="bg-linear-to-r from-indigo-50 to-purple-50 px-4 py-1.5 rounded-full border border-indigo-100/50">
               {isLoadingCities ? (
                 <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
               ) : (
@@ -578,16 +590,16 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Location Inputs */}
-          <div className="space-y-3">
+          {/* Location Inputs - Fixed Layout with Centered Switch */}
+          <div className="space-y-0 relative">
             {/* From */}
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => openSearchModal("from")}
-              className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl border border-slate-200/50 transition-all group"
+              className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl rounded-b-none border border-slate-200/50 border-b-0 transition-all group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-indigo-100 to-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                 <MapPin className="w-5 h-5 text-indigo-600" />
               </div>
               <div className="flex-1 text-left">
@@ -597,8 +609,8 @@ export default function HomePage() {
               <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </motion.button>
 
-            {/* Swap - Centered elegantly */}
-            <div className="relative flex justify-center -my-1.5">
+            {/* Switch Button - Centered with overlay */}
+            <div className="relative flex justify-center -my-4 z-10">
               <motion.button
                 whileHover={{ scale: 1.1, rotate: 180 }}
                 whileTap={{ scale: 0.9 }}
@@ -607,9 +619,9 @@ export default function HomePage() {
                   setFrom(to);
                   setTo(temp);
                 }}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 p-2.5 rounded-full shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all z-10"
+                className="bg-linear-to-r from-indigo-600 to-purple-600 p-3 rounded-full shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all border-4 border-white"
               >
-                <ArrowDownUp className="w-4 h-4 text-white" />
+                <ArrowDownUp className="w-5 h-5 text-white" />
               </motion.button>
             </div>
 
@@ -618,9 +630,9 @@ export default function HomePage() {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => openSearchModal("to")}
-              className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl border border-slate-200/50 transition-all group"
+              className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl rounded-t-none border border-slate-200/50 border-t-0 transition-all group"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-purple-100 to-purple-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
                 <MapPin className="w-5 h-5 text-purple-600" />
               </div>
               <div className="flex-1 text-left">
@@ -630,47 +642,40 @@ export default function HomePage() {
               <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </motion.button>
 
-            {/* Date */}
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={() => {
-                const input = document.createElement("input");
-                input.type = "date";
-                input.min = formatDateForAPI(new Date());
-                input.value = formatDateForAPI(date);
-                input.className = "hidden";
-                input.onchange = (e) => {
-                  const val = (e.target as HTMLInputElement).value;
-                  if (val) {
-                    setDate(new Date(val));
-                  }
-                };
-                document.body.appendChild(input);
-                input.click();
-                document.body.removeChild(input);
-              }}
-              className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl border border-slate-200/50 transition-all group"
-            >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                <Calendar className="w-5 h-5 text-blue-600" />
+            {/* Date - Native Input Style */}
+            <div className="relative mt-3">
+              <div 
+                onClick={() => dateInputRef.current?.showPicker()}
+                className="w-full flex items-center gap-3 bg-slate-50/80 hover:bg-slate-100/80 px-4 py-3.5 rounded-2xl border border-slate-200/50 transition-all group cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Journey Date</p>
+                  <p className="font-semibold text-gray-900">{formatDate(date)}</p>
+                </div>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={formatDateForAPI(date)}
+                  onChange={handleDateChange}
+                  min={formatDateForAPI(new Date())}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" />
               </div>
-              <div className="flex-1 text-left">
-                <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Journey Date</p>
-                <p className="font-semibold text-gray-900">{formatDate(date)}</p>
-              </div>
-              <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
-            </motion.button>
+            </div>
           </div>
 
-          {/* Search Button - Modern gradient with glow */}
+          {/* Search Button - Modern linear with glow */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleSearch}
-            className="w-full mt-6 bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 text-white rounded-2xl py-4 font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300 relative overflow-hidden group"
+            className="w-full mt-6 bg-linear-to-r from-indigo-600 via-indigo-600 to-purple-600 text-white rounded-2xl py-4 font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all duration-300 relative overflow-hidden group"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             <Search className="w-5 h-5" />
             Search {activeVehicleTab === "bus" ? "Buses" : "Hiaces"}
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -739,9 +744,9 @@ export default function HomePage() {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleAmbulanceBooking}
-          className="w-full mt-6 bg-gradient-to-r from-red-600 to-rose-500 rounded-2xl py-4 flex items-center justify-center gap-3 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all relative overflow-hidden group"
+          className="w-full mt-6 bg-linear-to-r from-red-600 to-rose-500 rounded-2xl py-4 flex items-center justify-center gap-3 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all relative overflow-hidden group"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+          <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
           <Ambulance className="w-6 h-6 text-white" />
           <span className="font-bold text-white text-base">Emergency Ambulance Service</span>
           <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" />
@@ -763,7 +768,7 @@ export default function HomePage() {
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent flex items-center px-6">
+            <div className="absolute inset-0 bg-linear-to-r from-black/40 to-transparent flex items-center px-6">
               <div className="text-left">
                 <p className="text-white font-bold text-xl">Scripio Reserved</p>
                 <p className="text-white/80 text-sm">Premium vehicle booking</p>
@@ -798,7 +803,7 @@ export default function HomePage() {
                 whileHover={{ y: -4, scale: 1.02 }}
                 className="min-w-[180px] bg-white/70 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-100/50 flex-shrink-0 hover:shadow-lg transition-all"
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-50 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-indigo-100 to-indigo-50 flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-indigo-600" />
                 </div>
                 <p className="font-semibold text-gray-900 mt-3 text-sm">
@@ -807,7 +812,7 @@ export default function HomePage() {
                 <p className="font-bold text-indigo-600 mt-1">
                   Rs. {item.fare}
                 </p>
-                <span className="inline-flex items-center gap-1 mt-2 bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600 text-xs font-semibold px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1 mt-2 bg-linear-to-r from-indigo-50 to-purple-50 text-indigo-600 text-xs font-semibold px-3 py-1 rounded-full">
                   <Star className="w-3 h-3 fill-indigo-600" />
                   Popular
                 </span>
@@ -871,7 +876,7 @@ export default function HomePage() {
                       whileHover={{ scale: 1.01 }}
                       className="bg-white/70 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-100/50 flex items-center gap-4 hover:shadow-lg transition-all"
                     >
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/20">
+                      <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-500/20">
                         <Bus className="w-7 h-7 text-white" />
                       </div>
                       <div className="flex-1">
@@ -898,7 +903,7 @@ export default function HomePage() {
                       </div>
                       <div className="text-right">
                         <p className="font-extrabold text-indigo-600 text-lg">Rs. {fare}</p>
-                        <span className="inline-block bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-shadow">
+                        <span className="inline-block bg-linear-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-shadow">
                           Book Now
                         </span>
                       </div>
@@ -930,7 +935,7 @@ export default function HomePage() {
                       whileHover={{ scale: 1.01 }}
                       className="bg-white/70 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-100/50 flex items-center gap-4 hover:shadow-lg transition-all"
                     >
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20">
+                      <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-emerald-600 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-500/20">
                         <Car className="w-7 h-7 text-white" />
                       </div>
                       <div className="flex-1">
@@ -957,7 +962,7 @@ export default function HomePage() {
                       </div>
                       <div className="text-right">
                         <p className="font-extrabold text-emerald-600 text-lg">Rs. {fare}</p>
-                        <span className="inline-block bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow">
+                        <span className="inline-block bg-linear-to-r from-emerald-600 to-emerald-500 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-shadow">
                           Book Now
                         </span>
                       </div>
@@ -1033,7 +1038,7 @@ export default function HomePage() {
                           "w-full flex items-center justify-between py-3.5 px-3 rounded-xl transition-all",
                           ((searchType === "from" && from === city.name) ||
                             (searchType === "to" && to === city.name)) &&
-                            "bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100/50"
+                            "bg-linear-to-r from-indigo-50 to-purple-50 border border-indigo-100/50"
                         )}
                       >
                         <div className="flex items-center gap-3">

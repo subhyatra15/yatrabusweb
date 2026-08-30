@@ -117,7 +117,7 @@ export default function ProfilePage() {
     {
       icon: User,
       title: "Personal Information",
-      href: "/profile/personalinfo",
+      href: "/personalinfo",
       color: "#4f46e5",
     },
     {
@@ -166,10 +166,18 @@ export default function ProfilePage() {
   const transformBooking = (booking: any): Trip => {
     const schedule = booking.schedule || booking.schedule_details || {};
     const route = schedule.route || {};
-    
+
     return {
-      from: route.source_city_name || schedule.source_city || booking.from_city || "N/A",
-      to: route.destination_city_name || schedule.destination_city || booking.to_city || "N/A",
+      from:
+        route.source_city_name ||
+        schedule.source_city ||
+        booking.from_city ||
+        "N/A",
+      to:
+        route.destination_city_name ||
+        schedule.destination_city ||
+        booking.to_city ||
+        "N/A",
       date: formatDate(schedule.departure_datetime || booking.created_at),
       price: `Rs. ${booking.total_amount || 0}`,
       status: booking.booking_status || "PENDING",
@@ -180,7 +188,7 @@ export default function ProfilePage() {
   const fetchUserProfile = useCallback(async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      
+
       if (!token) {
         console.log("No token found, using demo data");
         setUser(DEMO_USER);
@@ -207,7 +215,8 @@ export default function ProfilePage() {
           totalTrips: data.total_trips || 0,
           totalSpent: `Rs. ${data.total_spent || 0}`,
           rating: data.rating || 4.5,
-          profileImage: data.profile_image || data.profileImage || DEMO_USER.profileImage,
+          profileImage:
+            data.profile_image || data.profileImage || DEMO_USER.profileImage,
         });
       } else {
         console.log("Empty response, using demo data");
@@ -215,9 +224,9 @@ export default function ProfilePage() {
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
-      
+
       setUser(DEMO_USER);
-      
+
       if (error.response?.status === 401) {
         alert("Session Expired. Please login again.");
         router.push("/");
@@ -229,20 +238,21 @@ export default function ProfilePage() {
   const fetchBookingStats = useCallback(async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      
+
       if (!token) {
         console.log("No token, using demo bookings");
         setRecentTrips(DEMO_BOOKINGS);
         setBookingStats({
           total: DEMO_BOOKINGS.length,
-          upcoming: DEMO_BOOKINGS.filter(b => b.status === "UPCOMING").length,
-          completed: DEMO_BOOKINGS.filter(b => b.status === "COMPLETED").length,
+          upcoming: DEMO_BOOKINGS.filter((b) => b.status === "UPCOMING").length,
+          completed: DEMO_BOOKINGS.filter((b) => b.status === "COMPLETED")
+            .length,
         });
         return;
       }
 
       let allBookings = [];
-      
+
       try {
         const busResponse = await axios.get(`${API_URL}/api/v1/bookings/`, {
           headers: {
@@ -251,7 +261,7 @@ export default function ProfilePage() {
           },
           timeout: 15000,
         });
-        
+
         if (busResponse.data && busResponse.data.results) {
           allBookings = [...allBookings, ...busResponse.data.results];
         }
@@ -260,14 +270,17 @@ export default function ProfilePage() {
       }
 
       try {
-        const hiaceResponse = await axios.get(`${API_URL}/api/v1/hiace-bookings/`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+        const hiaceResponse = await axios.get(
+          `${API_URL}/api/v1/hiace-bookings/`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            timeout: 15000,
           },
-          timeout: 15000,
-        });
-        
+        );
+
         if (hiaceResponse.data && hiaceResponse.data.results) {
           allBookings = [...allBookings, ...hiaceResponse.data.results];
         }
@@ -279,15 +292,26 @@ export default function ProfilePage() {
 
       if (allBookings.length > 0) {
         const now = new Date();
-        
+
         const total = allBookings.length;
-        const upcoming = allBookings.filter(b => {
-          const departure = new Date(b.schedule?.departure_datetime || b.schedule_details?.departure_datetime);
+        const upcoming = allBookings.filter((b) => {
+          const departure = new Date(
+            b.schedule?.departure_datetime ||
+              b.schedule_details?.departure_datetime,
+          );
           const status = b.booking_status?.toUpperCase() || "";
-          return departure > now && (status === "PAID" || status === "CONFIRMED" || status === "PENDING");
+          return (
+            departure > now &&
+            (status === "PAID" ||
+              status === "CONFIRMED" ||
+              status === "PENDING")
+          );
         }).length;
-        const completed = allBookings.filter(b => {
-          const departure = new Date(b.schedule?.departure_datetime || b.schedule_details?.departure_datetime);
+        const completed = allBookings.filter((b) => {
+          const departure = new Date(
+            b.schedule?.departure_datetime ||
+              b.schedule_details?.departure_datetime,
+          );
           const status = b.booking_status?.toUpperCase() || "";
           return departure < now || status === "COMPLETED";
         }).length;
@@ -298,7 +322,7 @@ export default function ProfilePage() {
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 3)
           .map(transformBooking);
-        
+
         if (sortedBookings.length > 0) {
           setRecentTrips(sortedBookings);
         } else {
@@ -309,8 +333,9 @@ export default function ProfilePage() {
         setRecentTrips(DEMO_BOOKINGS);
         setBookingStats({
           total: DEMO_BOOKINGS.length,
-          upcoming: DEMO_BOOKINGS.filter(b => b.status === "UPCOMING").length,
-          completed: DEMO_BOOKINGS.filter(b => b.status === "COMPLETED").length,
+          upcoming: DEMO_BOOKINGS.filter((b) => b.status === "UPCOMING").length,
+          completed: DEMO_BOOKINGS.filter((b) => b.status === "COMPLETED")
+            .length,
         });
       }
     } catch (error) {
@@ -318,8 +343,8 @@ export default function ProfilePage() {
       setRecentTrips(DEMO_BOOKINGS);
       setBookingStats({
         total: DEMO_BOOKINGS.length,
-        upcoming: DEMO_BOOKINGS.filter(b => b.status === "UPCOMING").length,
-        completed: DEMO_BOOKINGS.filter(b => b.status === "COMPLETED").length,
+        upcoming: DEMO_BOOKINGS.filter((b) => b.status === "UPCOMING").length,
+        completed: DEMO_BOOKINGS.filter((b) => b.status === "COMPLETED").length,
       });
     }
   }, []);
@@ -389,7 +414,7 @@ export default function ProfilePage() {
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
-        
+
         <div className="max-w-6xl mx-auto relative z-10">
           {/* Header Top */}
           <div className="flex items-center justify-between mb-8">
@@ -458,11 +483,15 @@ export default function ProfilePage() {
                 key={index}
                 className={cn(
                   "text-center py-4 px-2",
-                  index < 2 && "border-r border-white/10"
+                  index < 2 && "border-r border-white/10",
                 )}
               >
-                <p className="text-2xl font-extrabold text-white">{stat.value}</p>
-                <p className="text-xs text-white/70 font-medium mt-0.5">{stat.label}</p>
+                <p className="text-2xl font-extrabold text-white">
+                  {stat.value}
+                </p>
+                <p className="text-xs text-white/70 font-medium mt-0.5">
+                  {stat.label}
+                </p>
               </div>
             ))}
           </motion.div>
@@ -478,7 +507,9 @@ export default function ProfilePage() {
           className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 overflow-hidden"
         >
           <div className="px-5 py-4 border-b border-slate-100/50">
-            <h3 className="text-lg font-bold text-gray-900">Account Settings</h3>
+            <h3 className="text-lg font-bold text-gray-900">
+              Account Settings
+            </h3>
           </div>
           {menuItems.map((item, index) => (
             <motion.button
@@ -487,7 +518,7 @@ export default function ProfilePage() {
               onClick={() => router.push(item.href)}
               className={cn(
                 "w-full flex items-center gap-4 px-5 py-4 transition-colors hover:bg-slate-50/50",
-                index < menuItems.length - 1 && "border-b border-slate-100/50"
+                index < menuItems.length - 1 && "border-b border-slate-100/50",
               )}
             >
               <div
@@ -539,15 +570,19 @@ export default function ProfilePage() {
                       {trip.from} → {trip.to}
                     </p>
                     <div className="flex items-center gap-3 mt-0.5">
-                      <span className="text-xs text-slate-400">{trip.date}</span>
-                      <span className={cn(
-                        "text-xs font-semibold px-2 py-0.5 rounded-full",
-                        trip.status === "COMPLETED" 
-                          ? "bg-emerald-50 text-emerald-600"
-                          : trip.status === "UPCOMING"
-                          ? "bg-blue-50 text-blue-600"
-                          : "bg-amber-50 text-amber-600"
-                      )}>
+                      <span className="text-xs text-slate-400">
+                        {trip.date}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-xs font-semibold px-2 py-0.5 rounded-full",
+                          trip.status === "COMPLETED"
+                            ? "bg-emerald-50 text-emerald-600"
+                            : trip.status === "UPCOMING"
+                              ? "bg-blue-50 text-blue-600"
+                              : "bg-amber-50 text-amber-600",
+                        )}
+                      >
                         {trip.status}
                       </span>
                     </div>
@@ -584,7 +619,9 @@ export default function ProfilePage() {
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50">
           <div className="bg-white/90 backdrop-blur-sm rounded-full shadow-lg px-4 py-2 flex items-center gap-2">
             <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
-            <span className="text-sm text-slate-600 font-medium">Refreshing...</span>
+            <span className="text-sm text-slate-600 font-medium">
+              Refreshing...
+            </span>
           </div>
         </div>
       )}
