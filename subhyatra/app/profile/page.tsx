@@ -401,14 +401,14 @@ export default function ProfilePage() {
             >
               <ArrowLeft className="w-5 h-5 text-white" />
             </motion.button>
-            <motion.button
+            {/* <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center hover:bg-white/25 transition-colors relative"
             >
               <Bell className="w-5 h-5 text-white" />
               <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
-            </motion.button>
+            </motion.button> */}
           </div>
 
           {/* Profile Info */}
