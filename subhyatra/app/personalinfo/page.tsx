@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import axios from "axios";
 import logo from "@/public/eticketlogo.jpeg";
 
-// API URL
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
 
 // Types
