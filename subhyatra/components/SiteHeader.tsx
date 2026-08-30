@@ -18,7 +18,7 @@ import logo from "@/public/eticketlogo.png"
 import Image from "next/image";
 
 const NAV_LINKS = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/home", label: "Home", icon: Home },
   { href: "/tickets", label: "Tickets", icon: TicketPercent },
   { href: "/track", label: "Track", icon: MapPinned }
 ];
@@ -32,7 +32,7 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-40 bg-night/95 backdrop-blur border-b border-white/10">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+        <Link href="/home" className="flex items-center gap-2.5 shrink-0">
           <span className="grid place-items-center w-9 h-9 rounded-full bg-marigold text-night">
             <Image src={logo} alt="logo" height={100}  width={100}/>
           </span>
