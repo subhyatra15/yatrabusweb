@@ -108,7 +108,7 @@ export default function RegisterPage() {
           "Registration Successful! 🎉",
           "Your account has been created successfully. Welcome to SubhYatra!"
         );
-        router.push("/signin");
+        router.push("/");
       } else {
         alert(
           "Registration Failed",
@@ -154,12 +154,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8faff] via-[#eef2ff] to-[#e0e7ff] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-[#f8faff] via-[#eef2ff] to-[#e0e7ff] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-indigo-50/20">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-block p-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/20 mb-4">
+            <div className="inline-block p-2 rounded-2xl bg-linear-to-r from-indigo-600 to-purple-600 shadow-lg shadow-indigo-500/20 mb-4">
               <div className="bg-white rounded-xl p-2">
                 <Image
                   src="/eticketlogo.jpeg"
@@ -343,7 +343,7 @@ export default function RegisterPage() {
             <button
               onClick={handleRegister}
               className={cn(
-                "w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold text-base flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40",
+                "w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold text-base flex items-center justify-center gap-2 transition-all duration-200 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40",
                 isLoading && "opacity-70 cursor-not-allowed"
               )}
               disabled={isLoading}
@@ -364,7 +364,7 @@ export default function RegisterPage() {
                 Already have an account?{" "}
               </span>
               <Link
-                href="/signin"
+                href="/"
                 className="text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
               >
                 Login

@@ -52,7 +52,7 @@ export default function LoginPage() {
 
             if (response.data && response.data.refresh) {
               const user = JSON.parse(userData);
-              router.replace(user.role === "P" ? "/(tabs)" : "/(operator)");
+              router.replace(user.role === "P" ? "/home" : "/home");
               return;
             } else {
               // Token is invalid, clear storage

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from 'react-hot-toast';
-import SiteHeader from "@/components/SiteHeader";
 
+
+import LayoutWrapper from "@/components/LayoutWrapper";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -38,15 +38,17 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+
+
   return (
     <html
       lang="en"
       className={`${fraunces.variable} ${jakarta.variable} ${jbMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
-        <SiteHeader/>
+        <LayoutWrapper>
         {children}
-         <Toaster />
+        </LayoutWrapper>
       </body>
     </html>
   );

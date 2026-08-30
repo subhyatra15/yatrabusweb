@@ -220,7 +220,7 @@ export default function ProfilePage() {
       
       if (error.response?.status === 401) {
         alert("Session Expired. Please login again.");
-        router.push("/login");
+        router.push("/");
       }
     }
   }, [router]);
@@ -339,7 +339,7 @@ export default function ProfilePage() {
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("userData");
         localStorage.removeItem("userRole");
-        router.push("/login");
+        router.push("/");
       } catch (error) {
         console.error("Logout error:", error);
         alert("Failed to logout. Please try again.");
