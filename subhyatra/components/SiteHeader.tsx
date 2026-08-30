@@ -14,6 +14,9 @@ import {
   X,
 } from "lucide-react";
 
+import logo from "@/public/eticketlogo.png"
+import Image from "next/image";
+
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/tickets", label: "Tickets", icon: TicketPercent },
@@ -32,7 +35,7 @@ export default function SiteHeader() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <span className="grid place-items-center w-9 h-9 rounded-full bg-marigold text-night">
-            <BusFront className="w-5 h-5" strokeWidth={2.25} />
+            <Image src={logo} alt="logo" height={100}  width={100}/>
           </span>
           <div className="leading-none">
             <p className="font-display text-xl text-paper tracking-tight">

@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   description:
     "Search, compare and book bus tickets across Nepal. Real seat maps, instant e-tickets, safe यात्रा.",
   icons:{
-    icon:'./eticketlogo.jepg'
+    icon:'/eticketlogo.png'
   }
 };
 
