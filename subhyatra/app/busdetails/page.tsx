@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   Bus,
   Car,
@@ -17,17 +16,10 @@ import {
   Droplets,
   CheckCircle,
   Clock,
-  Star,
-  User,
-  Phone,
-  MapPin,
-  Navigation,
-  Calendar,
   ArrowRight,
   X,
   Loader2,
-  Shield,
-  Award,
+
   TrendingUp,
   AlertCircle,
   Info,
@@ -36,13 +28,22 @@ import {
   Bed,
   Star as StarIcon,
   Grid2x2,
-  LogIn,
-  LogOut,
-  ChevronDown,
+
 } from "lucide-react";
-import { format } from "date-fns";
-import axios from "axios";
 import { cn } from "@/lib/utils";
+import axios from "axios";
+
+// Import components
+import BusDetailsCard from "@/components/BusDetailsCard";
+import dynamic from "next/dynamic";
+
+const BusDetailsMap = dynamic(
+  () => import("@/components/BudgetDetailsMap"),
+  {
+    ssr: false,
+  }
+);
+import BusDetailsDriverInfo from "@/components/BusDetailsDriverInfo";
 
 // Types
 interface Seat {
@@ -142,6 +143,7 @@ function BusDetailsPageComp() {
   const boardingStopId = searchParams.get("boardingStopId");
   const droppingStopId = searchParams.get("droppingStopId");
 
+  // State
   const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
   const [selectedSeatNumbers, setSelectedSeatNumbers] = useState<string[]>([]);
   const [showSeatModal, setShowSeatModal] = useState(false);
@@ -159,14 +161,13 @@ function BusDetailsPageComp() {
     latitude: 28.2096,
     longitude: 83.9856,
   });
-  const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [isLocationTracking, setIsLocationTracking] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
+  // Refs
   const wsRef = useRef<WebSocket | null>(null);
   const locationWsRef = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
@@ -192,7 +193,7 @@ function BusDetailsPageComp() {
     getUserId();
   }, []);
 
-  // Fetch cities for coordinates
+  // Fetch cities
   const fetchCities = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -213,7 +214,7 @@ function BusDetailsPageComp() {
     }
   };
 
-  // Get city coordinates by name
+  // Get city coordinates
   const getCityCoordinates = (cityName: string) => {
     const city = cities.find(
       (c) => c.name.toLowerCase() === cityName?.toLowerCase(),
@@ -227,7 +228,7 @@ function BusDetailsPageComp() {
     return null;
   };
 
-  // WebSocket connection for seats
+  // WebSocket for seats
   const connectWebSocket = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -270,7 +271,7 @@ function BusDetailsPageComp() {
     }
   };
 
-  // WebSocket connection for location tracking
+  // WebSocket for location tracking
   const connectLocationWebSocket = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -284,10 +285,7 @@ function BusDetailsPageComp() {
 
       console.log(`📍 Connecting to location WebSocket: ${wsUrl}`);
 
-      if (
-        locationWsRef.current &&
-        locationWsRef.current.readyState === WebSocket.OPEN
-      ) {
+      if (locationWsRef.current && locationWsRef.current.readyState === WebSocket.OPEN) {
         console.log("Location WebSocket already connected");
         return;
       }
@@ -336,10 +334,7 @@ function BusDetailsPageComp() {
         clearInterval(heartbeatIntervalRef.current);
       }
       heartbeatIntervalRef.current = setInterval(() => {
-        if (
-          locationWsRef.current &&
-          locationWsRef.current.readyState === WebSocket.OPEN
-        ) {
+        if (locationWsRef.current && locationWsRef.current.readyState === WebSocket.OPEN) {
           locationWsRef.current.send(JSON.stringify({ type: "ping" }));
         }
       }, 30000);
@@ -349,7 +344,7 @@ function BusDetailsPageComp() {
     }
   };
 
-  // Handle location update from WebSocket
+  // Handle location update
   const handleLocationUpdate = (data: any) => {
     console.log("📍 Processing location update:", data);
 
@@ -372,7 +367,7 @@ function BusDetailsPageComp() {
     }
   };
 
-  // Fetch current location from REST API (fallback)
+  // Fetch current location from REST API
   const fetchCurrentLocation = async () => {
     try {
       setIsLoadingLocation(true);
@@ -404,11 +399,7 @@ function BusDetailsPageComp() {
           console.log(`📍 Location fetched: ${latitude}, ${longitude}`);
           return true;
         }
-      } else if (
-        response.data &&
-        response.data.latitude &&
-        response.data.longitude
-      ) {
+      } else if (response.data && response.data.latitude && response.data.longitude) {
         setCurrentLocation({
           latitude: parseFloat(response.data.latitude),
           longitude: parseFloat(response.data.longitude),
@@ -437,6 +428,7 @@ function BusDetailsPageComp() {
     }
   };
 
+  // WebSocket message handler
   const handleWebSocketMessage = (data: WebSocketSeatEvent) => {
     console.log("WebSocket message:", data);
 
@@ -485,6 +477,7 @@ function BusDetailsPageComp() {
     }
   };
 
+  // Seat management functions
   const markSeatAsSelected = (
     seatId: string,
     selectedByUserId?: number,
@@ -495,9 +488,6 @@ function BusDetailsPageComp() {
         return row.map((seat: any) => {
           if (seat.id.toString() === seatId) {
             const isMine = selectedByUserId === userId;
-            console.log(
-              `Seat ${seatId} - isMine: ${isMine}, userId: ${userId}, selectedBy: ${selectedByUserId}`,
-            );
             return {
               ...seat,
               available: false,
@@ -542,9 +532,6 @@ function BusDetailsPageComp() {
           );
           if (wsSeat) {
             const isMine = wsSeat.user_id === userId;
-            console.log(
-              `Seat ${seat.seat_number} - user_id: ${wsSeat.user_id}, userId: ${userId}, isMine: ${isMine}`,
-            );
             return {
               ...seat,
               available: false,
@@ -631,55 +618,7 @@ function BusDetailsPageComp() {
     }
   };
 
-  useEffect(() => {
-    fetchCities();
-    fetchBusDetails();
-  }, [id]);
-
-  useEffect(() => {
-    if (scheduleId && userId !== null) {
-      connectWebSocket();
-    }
-
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, [scheduleId, userId]);
-
-  useEffect(() => {
-    if (busData) {
-      console.log("📍 Bus data available, connecting to location WebSocket...");
-      connectLocationWebSocket();
-      fetchCurrentLocation();
-    }
-
-    return () => {
-      if (locationWsRef.current) {
-        locationWsRef.current.close();
-      }
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
-    };
-  }, [busData]);
-
-  useEffect(() => {
-    if (!isLocationTracking && !isLoadingLocation && busData && !isLoading) {
-      const sourceCoords = getCityCoordinates(busData.from);
-      if (sourceCoords) {
-        setCurrentLocation({
-          latitude: sourceCoords.latitude,
-          longitude: sourceCoords.longitude,
-        });
-        console.log(
-          `📍 Using city coordinates for ${busData.from}: ${sourceCoords.latitude}, ${sourceCoords.longitude}`,
-        );
-      }
-    }
-  }, [isLocationTracking, isLoadingLocation, busData, isLoading]);
-
+  // Fetch bus details
   const fetchBusSeats = async (bus_id: number) => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -804,10 +743,7 @@ function BusDetailsPageComp() {
             if (locationResponse.data.success && locationResponse.data.data) {
               lat = locationResponse.data.data.latitude;
               lng = locationResponse.data.data.longitude;
-            } else if (
-              locationResponse.data.latitude &&
-              locationResponse.data.longitude
-            ) {
+            } else if (locationResponse.data.latitude && locationResponse.data.longitude) {
               lat = locationResponse.data.latitude;
               lng = locationResponse.data.longitude;
             }
@@ -821,9 +757,7 @@ function BusDetailsPageComp() {
             }
           }
         } catch (locationError) {
-          console.log(
-            "Could not fetch current location, using city coordinates",
-          );
+          console.log("Could not fetch current location, using city coordinates");
           setCurrentLocation({ latitude: initialLat, longitude: initialLng });
         }
 
@@ -837,10 +771,7 @@ function BusDetailsPageComp() {
           to: data.destination_city || "N/A",
           departure: formatTime(data.departure_datetime),
           arrival: formatTime(data.arrival_datetime),
-          duration: calculateDuration(
-            data.departure_datetime,
-            data.arrival_datetime,
-          ),
+          duration: calculateDuration(data.departure_datetime, data.arrival_datetime),
           price: parseFloat(data.fare) || 0,
           totalSeats: data.total_seats || 0,
           availableSeats: data.available_seats || 0,
@@ -880,7 +811,7 @@ function BusDetailsPageComp() {
         const status = error.response.status;
         if (status === 401) {
           alert("Session Expired. Please login again.");
-          router.push("/login");
+          router.push("/");
         } else if (status === 404) {
           alert("Bus schedule not found.");
         } else {
@@ -896,6 +827,7 @@ function BusDetailsPageComp() {
     }
   };
 
+  // Seat toggle
   const toggleSeat = async (rowIndex: number, colIndex: number) => {
     const newSeats = [...seats];
     const seat = newSeats[rowIndex][colIndex];
@@ -954,6 +886,32 @@ function BusDetailsPageComp() {
     setSelectedSeatNumbers(selectedNumbers);
   };
 
+  const getMaxSeatsInRow = () => {
+    let max = 0;
+    seats.forEach((row) => {
+      if (row.length > max) max = row.length;
+    });
+    return max;
+  };
+
+  const refreshLocation = async () => {
+    console.log("📍 Manual location refresh requested");
+
+    if (locationWsRef.current && locationWsRef.current.readyState === WebSocket.OPEN) {
+      locationWsRef.current.send(JSON.stringify({ type: "get_location" }));
+      alert("Requesting latest location from bus...");
+      return;
+    }
+
+    const success = await fetchCurrentLocation();
+    if (success) {
+      alert("Bus location has been updated.");
+    } else {
+      alert("Could not fetch bus location. Please try again.");
+    }
+  };
+
+  // Seat color helpers
   const getSeatColor = (seat: any) => {
     if (!seat.available) {
       if (seat.is_mine) return "#4f46e5";
@@ -1001,8 +959,10 @@ function BusDetailsPageComp() {
     return Sofa;
   };
 
+  // Total price
   const totalPrice = selectedSeats.length * (busData?.price || 0);
 
+  // Handle confirm booking
   const handleConfirmBooking = async () => {
     if (selectedSeats.length === 0) {
       alert("Please select at least one seat.");
@@ -1071,51 +1031,72 @@ function BusDetailsPageComp() {
     }
   };
 
-  const getMaxSeatsInRow = () => {
-    let max = 0;
-    seats.forEach((row) => {
-      if (row.length > max) max = row.length;
-    });
-    return max;
-  };
+  // Effects
+  useEffect(() => {
+    fetchCities();
+    fetchBusDetails();
+  }, [id]);
 
-  const refreshLocation = async () => {
-    console.log("📍 Manual location refresh requested");
-
-    if (
-      locationWsRef.current &&
-      locationWsRef.current.readyState === WebSocket.OPEN
-    ) {
-      locationWsRef.current.send(JSON.stringify({ type: "get_location" }));
-      alert("Requesting latest location from bus...");
-      return;
+  useEffect(() => {
+    if (scheduleId && userId !== null) {
+      connectWebSocket();
     }
 
-    const success = await fetchCurrentLocation();
-    if (success) {
-      alert("Bus location has been updated.");
-    } else {
-      alert("Could not fetch bus location. Please try again.");
-    }
-  };
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [scheduleId, userId]);
 
+  useEffect(() => {
+    if (busData) {
+      console.log("📍 Bus data available, connecting to location WebSocket...");
+      connectLocationWebSocket();
+      fetchCurrentLocation();
+    }
+
+    return () => {
+      if (locationWsRef.current) {
+        locationWsRef.current.close();
+      }
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+      }
+    };
+  }, [busData]);
+
+  useEffect(() => {
+    if (!isLocationTracking && !isLoadingLocation && busData && !isLoading) {
+      const sourceCoords = getCityCoordinates(busData.from);
+      if (sourceCoords) {
+        setCurrentLocation({
+          latitude: sourceCoords.latitude,
+          longitude: sourceCoords.longitude,
+        });
+        console.log(
+          `📍 Using city coordinates for ${busData.from}: ${sourceCoords.latitude}, ${sourceCoords.longitude}`,
+        );
+      }
+    }
+  }, [isLocationTracking, isLoadingLocation, busData, isLoading]);
+
+  // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <Bus className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
-          <p className="mt-6 text-indigo-600 font-medium">
-            Loading bus details...
-          </p>
+          <p className="mt-6 text-indigo-600 font-medium">Loading bus details...</p>
         </motion.div>
       </div>
     );
@@ -1123,14 +1104,14 @@ function BusDetailsPageComp() {
 
   if (!busData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center">
           <Bus className="w-10 h-10 text-slate-300" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">No bus found</h3>
         <button
           onClick={fetchBusDetails}
-          className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+          className="mt-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
         >
           Retry
         </button>
@@ -1139,7 +1120,7 @@ function BusDetailsPageComp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -1163,7 +1144,7 @@ function BusDetailsPageComp() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={refreshLocation}
-              className="w-10 h-10 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+              className="w-10 h-10 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
             >
               <RefreshCw className="w-5 h-5 text-white" />
             </motion.button>
@@ -1172,229 +1153,28 @@ function BusDetailsPageComp() {
       </motion.div>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32">
-        {/* Bus Details Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-5 mb-4"
-        >
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
-              <Bus className="w-8 h-8 text-white" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {busData.name}
-                  </h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span
-                      className={cn(
-                        "text-xs font-semibold px-2.5 py-1 rounded-full",
-                        busData.type === "AC"
-                          ? "bg-blue-100 text-blue-600"
-                          : "bg-amber-100 text-amber-600",
-                      )}
-                    >
-                      {busData.type}
-                    </span>
-                    <span className="text-sm text-slate-400">
-                      • {busData.busNumber}
-                    </span>
-                    <span className="text-sm text-slate-400">
-                      • {busData.totalSeats} seats
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="flex items-center gap-0.5">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={cn(
-                          "w-4 h-4",
-                          i < Math.floor(busData.rating)
-                            ? "fill-amber-400 text-amber-400"
-                            : "text-amber-400",
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm font-semibold text-gray-700 ml-1">
-                    {busData.rating}
-                  </span>
-                </div>
-              </div>
+        {/* Bus Details Card - Using Component */}
+        <BusDetailsCard 
+          busData={busData} 
+          boardingCity={boardingCity} 
+          droppingCity={droppingCity} 
+        />
 
-              {/* Route */}
-              <div className="flex items-center gap-4 mt-3 py-3 border-y border-slate-100">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-indigo-600" />
-                  <div className="w-0.5 h-8 bg-slate-200" />
-                  <div className="w-3 h-3 rounded-full bg-purple-600 border-2 border-purple-200" />
-                </div>
-                <div className="flex-1 flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-gray-900">
-                      {busData.departure}
-                    </p>
-                    <p className="text-sm text-slate-400">{busData.from}</p>
-                  </div>
-                  <div className="flex-1 mx-4 text-center">
-                    <div className="h-px bg-slate-200 w-full" />
-                    <p className="text-xs text-slate-400 mt-1">
-                      {busData.duration}
-                    </p>
-                    <div className="h-px bg-slate-200 w-full" />
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{busData.arrival}</p>
-                    <p className="text-sm text-slate-400">{busData.to}</p>
-                  </div>
-                </div>
-              </div>
+        {/* Map Section - Using Component */}
+        <BusDetailsMap
+          busData={busData}
+          currentLocation={currentLocation}
+          destinationLocation={destinationLocation}
+          isLiveTracking={isLocationTracking}
+          isLoading={isLoadingLocation}
+        />
 
-              {/* Boarding/Dropping Info */}
-              <div className="flex items-center gap-4 mt-3 text-sm">
-                <div className="flex items-center gap-2 text-emerald-600">
-                  <LogIn className="w-4 h-4" />
-                  <span className="font-medium">
-                    {boardingCity || busData.from}
-                  </span>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300" />
-                <div className="flex items-center gap-2 text-red-500">
-                  <LogOut className="w-4 h-4" />
-                  <span className="font-medium">
-                    {droppingCity || busData.to}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Map Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-5 mb-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Navigation className="w-5 h-5 text-indigo-600" />
-              <h3 className="font-semibold text-gray-900">Live Location</h3>
-            </div>
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  isLocationTracking
-                    ? "bg-emerald-500 animate-pulse"
-                    : "bg-slate-300",
-                )}
-              />
-              <span className="text-xs font-medium text-slate-400">
-                {isLocationTracking ? "Live" : "Offline"}
-              </span>
-            </div>
-          </div>
-
-          {/* Map Placeholder */}
-          <div className="relative w-full h-48 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 overflow-hidden border border-slate-200/50">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-10 h-10 text-indigo-600 mx-auto" />
-                <p className="text-sm text-slate-400 mt-2">Live map view</p>
-                <p className="text-xs text-slate-400">
-                  {currentLocation.latitude.toFixed(4)},{" "}
-                  {currentLocation.longitude.toFixed(4)}
-                </p>
-                {isLoadingLocation && (
-                  <Loader2 className="w-4 h-4 text-indigo-600 animate-spin mx-auto mt-2" />
-                )}
-              </div>
-            </div>
-            {/* Map would go here - you can integrate Mapbox or Google Maps */}
-          </div>
-        </motion.div>
-
-        {/* Driver Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-5 mb-4"
-        >
-          <button
-            onClick={() => setShowDriverInfo(!showDriverInfo)}
-            className="w-full flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-                <User className="w-5 h-5 text-indigo-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-gray-900">
-                  Driver Information
-                </p>
-                <p className="text-sm text-slate-400">{busData.driver.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span className="text-sm font-semibold">
-                  {busData.driver.rating}
-                </span>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "w-5 h-5 text-slate-400 transition-transform",
-                  showDriverInfo && "rotate-180",
-                )}
-              />
-            </div>
-          </button>
-
-          <AnimatePresence>
-            {showDriverInfo && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden"
-              >
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 flex items-center justify-center">
-                      <User className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {busData.driver.name}
-                      </p>
-                      <p className="text-sm text-slate-400">
-                        {busData.driver.experience} experience
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Phone className="w-4 h-4 text-slate-400" />
-                    <span>{busData.driver.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Award className="w-4 h-4 text-amber-500" />
-                    <span>Certified Professional Driver</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+        {/* Driver Info - Using Component */}
+        <BusDetailsDriverInfo
+          busData={busData}
+          showDriverInfo={showDriverInfo}
+          setShowDriverInfo={setShowDriverInfo}
+        />
 
         {/* Amenities */}
         <motion.div
@@ -1427,7 +1207,7 @@ function BusDetailsPageComp() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-5 mb-4"
+          className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-5 mb-4 z-50"
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">Select Seats</h3>
@@ -1494,7 +1274,7 @@ function BusDetailsPageComp() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200/50 px-4 py-4 z-40"
+        className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200/50 px-4 py-4 z-[1000]"
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
@@ -1507,7 +1287,7 @@ function BusDetailsPageComp() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowSeatModal(true)}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+            className="bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
           >
             Select Seats
             <ArrowRight className="w-5 h-5" />
@@ -1522,7 +1302,7 @@ function BusDetailsPageComp() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center mb-20"
             onClick={() => setShowSeatModal(false)}
           >
             <motion.div
@@ -1569,9 +1349,7 @@ function BusDetailsPageComp() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded bg-amber-400" />
-                    <span className="text-xs text-slate-600">
-                      Being Selected
-                    </span>
+                    <span className="text-xs text-slate-600">Being Selected</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded bg-red-100 border border-red-200" />
@@ -1752,7 +1530,7 @@ function BusDetailsPageComp() {
                     onClick={handleConfirmBooking}
                     disabled={selectedSeats.length === 0 || isBooking}
                     className={cn(
-                      "bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25",
+                      "bg-linear-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25",
                       (selectedSeats.length === 0 || isBooking) &&
                         "opacity-50 cursor-not-allowed",
                     )}
@@ -1775,10 +1553,8 @@ function BusDetailsPageComp() {
 
 export default function BusDetailsPage() {
   return (
-    <>
-      <Suspense fallback={<div>Loading...</div>}>
-        <BusDetailsPageComp />
-      </Suspense>
-    </>
+    <Suspense fallback={<div>Loading...</div>}>
+      <BusDetailsPageComp />
+    </Suspense>
   );
 }

@@ -34,6 +34,47 @@
   --font-mono: var(--font-jbmono);
 }
 
+/* app/globals.css */
+@import 'leaflet/dist/leaflet.css';
+
+/* Fix for Leaflet markers in Next.js */
+.leaflet-control-attribution {
+  font-size: 8px !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Custom marker animation */
+@keyframes markerPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.bus-marker div {
+  animation: markerPulse 2s ease-in-out infinite;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -92,6 +133,9 @@ body {
   background-repeat: repeat-x;
   height: 2px;
 }
+
+
+
 
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {

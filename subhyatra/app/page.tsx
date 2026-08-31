@@ -131,7 +131,7 @@ export default function LoginPage() {
         }
 
         alert("Login Successful! 🎉", "Welcome back to SubhYatra!");
-        router.push(response.data.user.role === "P" ? "/(tabs)" : "/(operator)");
+        router.push(response.data.user.role === "P" ? "/home" : "/home");
       } else {
         alert(
           "Login Failed",
