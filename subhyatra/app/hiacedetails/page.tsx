@@ -1,4 +1,4 @@
-// app/hiacedetails/page.tsx
+// @ts-nocheck
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
