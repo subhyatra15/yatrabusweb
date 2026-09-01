@@ -123,7 +123,7 @@ export default function ProfilePage() {
     {
       icon: Ticket,
       title: "My Tickets",
-      href: "/bookings",
+      href: "/tickets",
       color: "#2563eb",
     },
     {
@@ -522,7 +522,7 @@ export default function ProfilePage() {
               )}
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                 style={{ backgroundColor: item.color + "15" }}
               >
                 <item.icon className="w-5 h-5" style={{ color: item.color }} />

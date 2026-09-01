@@ -453,12 +453,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Modern Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 pt-8 pb-12 px-6 rounded-b-[2.5rem] relative overflow-hidden"
+        className="bg-linear-to-r from-indigo-600 via-indigo-700 to-purple-600 pt-8 pb-12 px-6 rounded-b-[2.5rem] relative overflow-hidden"
       >
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
@@ -700,9 +700,9 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-4 gap-3">
             {[
-              { icon: Ticket, label: "My Tickets", color: "indigo", href: "/(tabs)/bookings" },
+              { icon: Ticket, label: "My Tickets", color: "indigo", href: "/tickets" },
               { icon: Bus, label: "Routes", color: "purple", href: "/routelist" },
-              { icon: Navigation, label: "Track", color: "blue", href: "/location" },
+              { icon: Navigation, label: "Track", color: "blue", href: "/track" },
               { icon: Car, label: "Scripio", color: "emerald", href: "/scripio-reserved" },
             ].map((item, index) => (
               <motion.button
