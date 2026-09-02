@@ -69,6 +69,7 @@ interface DriverProfile {
     phone: string;
     relationship: string;
   };
+  totalVehicle?: number;
 }
 
 // Demo Profile Data
@@ -95,6 +96,7 @@ const DEMO_PROFILE: DriverProfile = {
     phone: "+977 984-7654321",
     relationship: "Spouse",
   },
+  totalVehicle: 3,
 };
 
 // Stat Card Component
@@ -169,11 +171,24 @@ export default function DriverProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<DriverProfile>>({});
   const [usingDemoData, setUsingDemoData] = useState(false);
+  const [isComponentMounted, setIsComponentMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Mark component as mounted
+  useEffect(() => {
+    setIsComponentMounted(true);
+    return () => {
+      setIsComponentMounted(false);
+    };
+  }, []);
 
   // Fetch profile
   const fetchProfile = useCallback(async () => {
+    if (!isComponentMounted) return;
+
     try {
       setLoading(true);
+      setError(null);
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
@@ -182,10 +197,16 @@ export default function DriverProfilePage() {
         return;
       }
 
+      console.log("Fetching driver profile...");
       const response = await axios.get(`${API_URL}/api/v1/driver/profile/`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         timeout: 15000,
       });
+
+      console.log("Profile response:", response.data);
 
       if (response.data && response.data.id) {
         setProfile(response.data);
@@ -197,25 +218,45 @@ export default function DriverProfilePage() {
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
-      useDemoData();
-
+      
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
-        router.push("/login");
+        setError("Session expired. Please login again.");
+        // Don't redirect immediately, let user see the error
+        useDemoData();
+        return;
       }
+
+      if (error.response?.status === 404) {
+        setError("Profile not found. Please complete your profile.");
+        useDemoData();
+        return;
+      }
+
+      if (error.code === "ECONNABORTED") {
+        setError("Connection timeout. Please check your network.");
+        useDemoData();
+        return;
+      }
+
+      // For any other error, use demo data
+      useDemoData();
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isComponentMounted) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [router]);
+  }, [isComponentMounted, router]);
 
   const useDemoData = () => {
+    if (!isComponentMounted) return;
     setProfile(DEMO_PROFILE);
     setEditForm(DEMO_PROFILE);
     setUsingDemoData(true);
   };
 
   const onRefresh = () => {
+    if (!isComponentMounted) return;
     setRefreshing(true);
     fetchProfile();
   };
@@ -228,33 +269,59 @@ export default function DriverProfilePage() {
     }
 
     try {
+      setIsEditing(true);
       const token = localStorage.getItem("accessToken");
-      await axios.put(
+      
+      if (!token) {
+        alert("Please login to update profile");
+        return;
+      }
+
+      console.log("Updating profile:", editForm);
+      
+      const response = await axios.put(
         `${API_URL}/api/v1/driver/profile/`,
         editForm,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
         }
       );
 
-      alert("Profile updated successfully");
+      console.log("Update response:", response.data);
+      alert("Profile updated successfully!");
       setShowEditModal(false);
       fetchProfile();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      alert("Failed to update profile");
+      
+      if (error.response?.data?.message) {
+        alert(error.response.data.message);
+      } else if (error.response?.status === 401) {
+        alert("Session expired. Please login again.");
+        router.push("/login");
+      } else {
+        alert("Failed to update profile. Please try again.");
+      }
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
+    if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("userRole");
-      router.push("/login");
+      localStorage.removeItem("refreshToken");
+      router.push("/");
     }
   };
 
-  if (loading) {
+  // If not mounted yet, show loading
+  if (!isComponentMounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
         <motion.div
@@ -269,24 +336,36 @@ export default function DriverProfilePage() {
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
           <p className="mt-6 text-indigo-600 font-medium">Loading profile...</p>
+          <p className="mt-2 text-slate-400 text-sm">Please wait</p>
         </motion.div>
       </div>
     );
   }
 
-  if (!profile) {
+  if (!profile && !loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-10 h-10 text-red-400" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">Profile not found</h3>
-        <button
-          onClick={fetchProfile}
-          className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
-        >
-          Retry
-        </button>
+        <p className="text-sm text-slate-400 text-center mt-2 max-w-sm">
+          {error || "Unable to load your profile. Please try again."}
+        </p>
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={fetchProfile}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => router.push("/")}
+            className="bg-slate-100 text-slate-700 px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition-all"
+          >
+            Go Home
+          </button>
+        </div>
       </div>
     );
   }
@@ -296,9 +375,34 @@ export default function DriverProfilePage() {
       {/* Demo Banner */}
       {usingDemoData && (
         <div className="max-w-6xl mx-auto px-4 pt-4">
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-            <Info className="w-4 h-4 text-amber-500" />
-            <span className="text-sm text-amber-600 font-medium">Showing demo data</span>
+          <div className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-amber-500" />
+              <span className="text-sm text-amber-600 font-medium">Showing demo data</span>
+            </div>
+            <button
+              onClick={fetchProfile}
+              className="text-xs text-amber-600 font-semibold hover:text-amber-700 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5 inline mr-1" />
+              Refresh
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {error && !usingDemoData && (
+        <div className="max-w-6xl mx-auto px-4 pt-4">
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <span className="text-sm text-red-600 font-medium">{error}</span>
+            <button
+              onClick={fetchProfile}
+              className="ml-auto text-xs text-red-600 font-semibold hover:text-red-700 transition-colors"
+            >
+              Retry
+            </button>
           </div>
         </div>
       )}
@@ -316,14 +420,15 @@ export default function DriverProfilePage() {
           <div className="flex items-center gap-4">
             {/* Profile Image */}
             <div className="relative">
-              <div className="w-20 h-20 rounded-full border-3 border-white/30 shadow-xl overflow-hidden">
-                {profile.profileImage ? (
+              <div className="w-20 h-20 rounded-full border-3 border-white/30 shadow-xl overflow-hidden bg-white/10">
+                {profile?.profileImage ? (
                   <Image
                     src={profile.profileImage}
-                    alt={profile.fullName}
+                    alt={profile.fullName || "Driver"}
                     width={80}
                     height={80}
-                    className="object-cover"
+                    className="object-cover w-full h-full"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full bg-white/20 flex items-center justify-center">
@@ -343,8 +448,10 @@ export default function DriverProfilePage() {
             </div>
 
             {/* Profile Info */}
-            <div className="flex-1">
-              <h2 className="text-2xl font-extrabold text-white">{profile.fullName}</h2>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-extrabold text-white truncate">
+                {profile?.fullName || "Driver"}
+              </h2>
               <div className="flex items-center gap-2 mt-1">
                 <Shield className="w-4 h-4 text-white/80" />
                 <span className="text-sm text-white/80 font-medium">Driver</span>
@@ -352,19 +459,25 @@ export default function DriverProfilePage() {
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="flex items-center gap-1">
                   <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="text-white font-bold">{profile.rating.toFixed(1)}</span>
+                  <span className="text-white font-bold">
+                    {profile?.rating?.toFixed(1) || "0.0"}
+                  </span>
                 </div>
-                <span className="text-white/60 text-sm">({profile.totalTrips} trips)</span>
+                <span className="text-white/60 text-sm">
+                  ({profile?.totalTrips || 0} trips)
+                </span>
               </div>
             </div>
 
             {/* Edit Button */}
             <button
               onClick={() => {
-                setEditForm(profile);
-                setShowEditModal(true);
+                if (profile) {
+                  setEditForm(profile);
+                  setShowEditModal(true);
+                }
               }}
-              className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors"
+              className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors flex-shrink-0"
             >
               <Edit className="w-5 h-5 text-white" />
             </button>
@@ -381,25 +494,25 @@ export default function DriverProfilePage() {
         >
           <StatCard
             icon={Calendar}
-            value={profile.totalTrips}
+            value={profile?.totalTrips || 0}
             label="Total Trips"
             color="#4f46e5"
           />
           <StatCard
             icon={Wallet}
-            value={`Rs. ${profile.totalEarnings.toLocaleString()}`}
+            value={`Rs. ${(profile?.totalEarnings || 0).toLocaleString()}`}
             label="Total Earnings"
             color="#059669"
           />
           <StatCard
             icon={Star}
-            value={profile.rating.toFixed(1)}
+            value={(profile?.rating || 0).toFixed(1)}
             label="Rating"
             color="#f59e0b"
           />
           <StatCard
             icon={Car}
-            value={profile.totalVehicle || 0}
+            value={profile?.totalVehicle || 0}
             label="Vehicles"
             color="#8b5cf6"
           />
@@ -416,34 +529,34 @@ export default function DriverProfilePage() {
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 space-y-3">
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">Email</p>
-                <p className="font-semibold text-gray-900">{profile.email || "N/A"}</p>
+                <p className="font-semibold text-gray-900 truncate">{profile?.email || "N/A"}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">Phone</p>
-                <p className="font-semibold text-gray-900">{profile.phone || "N/A"}</p>
+                <p className="font-semibold text-gray-900">{profile?.phone || "N/A"}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">Joined</p>
                 <p className="font-semibold text-gray-900">
-                  {profile.joinDate ? new Date(profile.joinDate).toLocaleDateString("en-US", {
+                  {profile?.joinDate ? new Date(profile.joinDate).toLocaleDateString("en-US", {
                     month: "long",
                     year: "numeric",
                   }) : "N/A"}
                 </p>
               </div>
             </div>
-            {profile.address && (
+            {profile?.address && (
               <div className="flex items-center gap-3">
                 <MapPin className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-400 font-medium">Address</p>
                   <p className="font-semibold text-gray-900">{profile.address}</p>
                 </div>
@@ -463,17 +576,17 @@ export default function DriverProfilePage() {
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 space-y-3">
             <div className="flex items-center gap-3">
               <IdCard className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">License Number</p>
-                <p className="font-semibold text-gray-900">{profile.licenseNumber || "Not provided"}</p>
+                <p className="font-semibold text-gray-900">{profile?.licenseNumber || "Not provided"}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">License Expiry</p>
                 <p className="font-semibold text-gray-900">
-                  {profile.licenseExpiry ? new Date(profile.licenseExpiry).toLocaleDateString("en-US", {
+                  {profile?.licenseExpiry ? new Date(profile.licenseExpiry).toLocaleDateString("en-US", {
                     month: "long",
                     day: "numeric",
                     year: "numeric",
@@ -483,16 +596,16 @@ export default function DriverProfilePage() {
             </div>
             <div className="flex items-center gap-3">
               <Briefcase className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-400 font-medium">Experience</p>
-                <p className="font-semibold text-gray-900">{profile.experience || 0} years</p>
+                <p className="font-semibold text-gray-900">{profile?.experience || 0} years</p>
               </div>
             </div>
           </div>
         </motion.div>
 
         {/* Vehicle Types */}
-        {profile.vehicleType && profile.vehicleType.length > 0 && (
+        {profile?.vehicleType && profile.vehicleType.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -515,7 +628,7 @@ export default function DriverProfilePage() {
         )}
 
         {/* Languages */}
-        {profile.languages && profile.languages.length > 0 && (
+        {profile?.languages && profile.languages.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -538,7 +651,7 @@ export default function DriverProfilePage() {
         )}
 
         {/* Bio */}
-        {profile.bio && (
+        {profile?.bio && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -553,7 +666,7 @@ export default function DriverProfilePage() {
         )}
 
         {/* Emergency Contact */}
-        {profile.emergencyContact && (
+        {profile?.emergencyContact && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -564,21 +677,21 @@ export default function DriverProfilePage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 <User className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-400 font-medium">Name</p>
                   <p className="font-semibold text-gray-900">{profile.emergencyContact.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-400 font-medium">Phone</p>
                   <p className="font-semibold text-gray-900">{profile.emergencyContact.phone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Heart className="w-5 h-5 text-slate-400" />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-400 font-medium">Relationship</p>
                   <p className="font-semibold text-gray-900">{profile.emergencyContact.relationship}</p>
                 </div>
@@ -737,7 +850,40 @@ export default function DriverProfilePage() {
                     className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     value={editForm.experience || 0}
                     onChange={(e) =>
-                      setEditForm((prev) => ({ ...prev, experience: parseInt(e.target.value) || 0 }))
+                      setEditForm((prev) => ({ 
+                        ...prev, 
+                        experience: parseInt(e.target.value) || 0 
+                      }))
+                    }
+                  />
+                </div>
+
+                {/* License Number */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    License Number
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={editForm.licenseNumber || ""}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, licenseNumber: e.target.value }))
+                    }
+                  />
+                </div>
+
+                {/* License Expiry */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    License Expiry
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    value={editForm.licenseExpiry || ""}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({ ...prev, licenseExpiry: e.target.value }))
                     }
                   />
                 </div>
@@ -752,9 +898,19 @@ export default function DriverProfilePage() {
 
                 <button
                   onClick={handleUpdateProfile}
-                  className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                  disabled={isEditing}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {usingDemoData ? "Demo Mode" : "Update Profile"}
+                  {isEditing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Updating...
+                    </span>
+                  ) : usingDemoData ? (
+                    "Demo Mode"
+                  ) : (
+                    "Update Profile"
+                  )}
                 </button>
               </div>
             </motion.div>

@@ -85,22 +85,75 @@ export default function QRScannerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isComponentMounted, setIsComponentMounted] = useState(false);
 
   const scannerRef = useRef<any>(null);
   const videoRef = useRef<HTMLDivElement>(null);
+  const qrReaderRef = useRef<HTMLDivElement>(null);
+
+  // Mark component as mounted
+  useEffect(() => {
+    setIsComponentMounted(true);
+    return () => {
+      setIsComponentMounted(false);
+    };
+  }, []);
 
   // Initialize QR scanner
   useEffect(() => {
+    if (!isComponentMounted) return;
+
+    let isMounted = true;
+    let scannerInstance: any = null;
+    let initTimeout: NodeJS.Timeout;
+
     const initScanner = async () => {
       try {
         setIsLoading(true);
-        
-        // Check if we're in a browser environment
-        if (typeof window === "undefined") return;
+        console.log("Starting scanner initialization...");
 
-        // Initialize the QR scanner
-        const scanner = new Html5Qrcode("qr-reader");
-        scannerRef.current = scanner;
+        // Check if we're in a browser environment
+        if (typeof window === "undefined") {
+          console.log("Not in browser environment");
+          return;
+        }
+
+        // Check if element exists with retry
+        let element = document.getElementById("qr-reader");
+        let retries = 0;
+        const maxRetries = 10;
+
+        while (!element && retries < maxRetries) {
+          console.log(`Waiting for QR reader element... Attempt ${retries + 1}`);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          element = document.getElementById("qr-reader");
+          retries++;
+        }
+
+        if (!element) {
+          console.error("QR reader element not found after retries");
+          if (isMounted) {
+            setError("Scanner element not ready. Please refresh the page.");
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        console.log("QR reader element found:", element);
+
+        // Clear any existing scanner
+        if (scannerRef.current) {
+          try {
+            await scannerRef.current.stop();
+            scannerRef.current.clear();
+          } catch (e) {
+            console.log("Cleanup existing scanner:", e);
+          }
+        }
+
+        // Create new scanner instance
+        scannerInstance = new Html5Qrcode("qr-reader");
+        scannerRef.current = scannerInstance;
 
         const config = {
           fps: 10,
@@ -108,51 +161,84 @@ export default function QRScannerPage() {
           aspectRatio: 1.0,
         };
 
+        console.log("Scanner config:", config);
+
         const onScanSuccess = (decodedText: string, decodedResult: any) => {
+          console.log("QR Code scanned successfully:", decodedText);
           if (scanned || isVerifying) return;
           handleBarCodeScanned(decodedText);
         };
 
         const onScanError = (err: any) => {
-          // Silently handle errors
+          // Silently handle errors - this is normal during scanning
           console.debug("Scan error:", err);
         };
 
-        await scanner.start(
+        console.log("Starting camera...");
+
+        // Start scanning with camera
+        await scannerInstance.start(
           { facingMode: "environment" },
           config,
           onScanSuccess,
           onScanError
         );
 
-        setHasPermission(true);
-        setError(null);
+        console.log("Camera started successfully!");
+
+        if (isMounted) {
+          setHasPermission(true);
+          setError(null);
+          setIsLoading(false);
+        }
       } catch (err: any) {
         console.error("Scanner initialization error:", err);
-        setHasPermission(false);
-        setError(err.message || "Failed to access camera");
-      } finally {
-        setIsLoading(false);
+        console.error("Error details:", {
+          name: err.name,
+          message: err.message,
+          stack: err.stack,
+        });
+
+        if (isMounted) {
+          // Check if it's a permission error
+          if (err.message?.includes("permission") || err.message?.includes("denied")) {
+            setHasPermission(false);
+            setError("Camera permission denied. Please allow camera access in your browser settings.");
+          } else if (err.message?.includes("NotFoundError") || err.message?.includes("device not found")) {
+            setError("No camera found. Please ensure your device has a camera.");
+          } else {
+            setHasPermission(false);
+            setError(err.message || "Failed to access camera. Please try again.");
+          }
+          setIsLoading(false);
+        }
       }
     };
 
-    initScanner();
+    // Add a small delay to ensure DOM is ready
+    initTimeout = setTimeout(() => {
+      initScanner();
+    }, 500);
 
+    // Cleanup function
     return () => {
-      if (scannerRef.current) {
+      isMounted = false;
+      clearTimeout(initTimeout);
+      if (scannerInstance) {
         try {
-          scannerRef.current.stop().catch(() => {});
-          scannerRef.current.clear();
+          scannerInstance.stop().catch(() => {});
+          scannerInstance.clear();
         } catch (e) {
           console.error("Cleanup error:", e);
         }
       }
+      scannerRef.current = null;
     };
-  }, []);
+  }, [isComponentMounted]);
 
   // Handle torch toggle
   useEffect(() => {
-    if (scannerRef.current) {
+    if (scannerRef.current && hasPermission) {
       try {
         scannerRef.current.applyVideoConstraints({
           facingMode: "environment",
@@ -162,7 +248,7 @@ export default function QRScannerPage() {
         console.error("Torch toggle error:", e);
       }
     }
-  }, [torchOn]);
+  }, [torchOn, hasPermission]);
 
   // Handle QR code scan
   const handleBarCodeScanned = async (data: string) => {
@@ -172,23 +258,46 @@ export default function QRScannerPage() {
     setIsVerifying(true);
 
     try {
-      let qrData: any;
-      let vehicleType = "bus";
       let qrToken = "";
+      let vehicleType = "bus";
 
+      // Try to parse as JSON first
       try {
-        qrData = JSON.parse(data);
+        const qrData = JSON.parse(data);
         qrToken = qrData.qr_token || qrData.raw || data;
         vehicleType = qrData.vehicleType || "bus";
+        console.log("Parsed QR data:", qrData);
       } catch {
-        qrData = { raw: data };
-        qrToken = data;
+        // Use raw data as token
+        qrToken = data.trim();
         vehicleType = "bus";
+        console.log("Using raw QR data as token");
       }
 
-      console.log("QR Data:", qrData);
       console.log("QR Token:", qrToken);
       console.log("Vehicle Type:", vehicleType);
+
+      // Validate token
+      if (!qrToken || qrToken === "ok" || qrToken === "OK" || qrToken.length < 3) {
+        setVerificationResult({
+          success: false,
+          message: "Invalid QR code. Please scan a valid ticket.",
+          booking: null,
+        });
+        setShowResultModal(true);
+        setIsVerifying(false);
+        setScanned(false);
+        return;
+      }
+
+      // Stop scanning while verifying
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch (e) {
+          console.error("Stop scanner error:", e);
+        }
+      }
 
       const result = await verifyTicket(qrToken, vehicleType);
 
@@ -219,6 +328,7 @@ export default function QRScannerPage() {
       setShowResultModal(true);
     } finally {
       setIsVerifying(false);
+      // Don't reset scanned here - we'll reset when user clicks "Scan Another"
     }
   };
 
@@ -234,12 +344,19 @@ export default function QRScannerPage() {
       throw new Error("Invalid QR code. Missing booking information.");
     }
 
+    // Clean token
+    qrToken = qrToken.trim();
+
     let response = null;
     let error = null;
+
+    console.log("Verifying ticket with token:", qrToken);
+    console.log("Vehicle type:", vehicleType);
 
     // Try both endpoints based on vehicle type
     if (vehicleType === "hiace") {
       try {
+        console.log("Trying hiace endpoint...");
         response = await axios.get(
           `${API_URL}/api/v1/hiace-bookings/verify/?qr_token=${qrToken}`,
           {
@@ -250,6 +367,7 @@ export default function QRScannerPage() {
             timeout: 15000,
           }
         );
+        console.log("Hiace response:", response.data);
       } catch (err) {
         error = err;
         console.log("Hiace verification failed, trying bus...");
@@ -259,6 +377,7 @@ export default function QRScannerPage() {
     // If hiace failed or vehicle type is bus, try bus endpoint
     if (!response && vehicleType !== "hiace") {
       try {
+        console.log("Trying bus endpoint...");
         response = await axios.get(
           `${API_URL}/api/v1/bookings/verify/?qr_token=${qrToken}`,
           {
@@ -269,6 +388,7 @@ export default function QRScannerPage() {
             timeout: 15000,
           }
         );
+        console.log("Bus response:", response.data);
       } catch (err) {
         error = err;
         console.log("Bus verification failed");
@@ -278,6 +398,7 @@ export default function QRScannerPage() {
     // If still no response, try the other endpoint as fallback
     if (!response) {
       try {
+        console.log("Trying bus endpoint as fallback...");
         response = await axios.get(
           `${API_URL}/api/v1/bookings/verify/?qr_token=${qrToken}`,
           {
@@ -288,6 +409,7 @@ export default function QRScannerPage() {
             timeout: 15000,
           }
         );
+        console.log("Fallback bus response:", response.data);
       } catch (err) {
         error = err;
       }
@@ -295,6 +417,7 @@ export default function QRScannerPage() {
 
     if (!response) {
       try {
+        console.log("Trying hiace endpoint as fallback...");
         response = await axios.get(
           `${API_URL}/api/v1/hiace-bookings/verify/?qr_token=${qrToken}`,
           {
@@ -305,13 +428,23 @@ export default function QRScannerPage() {
             timeout: 15000,
           }
         );
+        console.log("Fallback hiace response:", response.data);
       } catch (err) {
         error = err;
       }
     }
 
     if (!response) {
-      throw new Error(error?.response?.data?.message || "Invalid ticket or booking not found");
+      console.error("All verification attempts failed:", error);
+      if (error?.response?.status === 401) {
+        throw new Error("Session expired. Please login again.");
+      } else if (error?.response?.status === 404) {
+        throw new Error("Ticket not found. Please check the QR code.");
+      } else if (error?.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else {
+        throw new Error("Could not verify ticket. Please check your connection.");
+      }
     }
 
     console.log("Verification Response:", response.data);
@@ -398,11 +531,35 @@ export default function QRScannerPage() {
   };
 
   // Handle scan again
-  const handleScanAgain = () => {
+  const handleScanAgain = async () => {
     setScanned(false);
     setIsScanning(true);
     setVerificationResult(null);
     setShowResultModal(false);
+
+    // Restart scanner if it was stopped
+    if (scannerRef.current && hasPermission) {
+      try {
+        await scannerRef.current.resume();
+      } catch (e) {
+        console.error("Resume scanner error:", e);
+        // Try to restart
+        try {
+          await scannerRef.current.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText: string) => {
+              if (!scanned && !isVerifying) {
+                handleBarCodeScanned(decodedText);
+              }
+            },
+            (err: any) => console.debug(err)
+          );
+        } catch (restartError) {
+          console.error("Restart scanner error:", restartError);
+        }
+      }
+    }
   };
 
   // Handle close
@@ -426,6 +583,7 @@ export default function QRScannerPage() {
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
           <p className="mt-6 text-white font-medium">Initializing scanner...</p>
+          <p className="mt-2 text-white/40 text-sm">Please allow camera access when prompted</p>
         </motion.div>
       </div>
     );
@@ -440,14 +598,30 @@ export default function QRScannerPage() {
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">No Camera Access</h3>
         <p className="text-sm text-slate-400 text-center mt-2 max-w-sm">
-          Please enable camera access in your browser settings to scan QR codes.
+          {error || "Please enable camera access in your browser settings to scan QR codes."}
         </p>
-        <button
-          onClick={handleClose}
-          className="mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
-        >
-          Go Back
-        </button>
+        <div className="mt-4 flex flex-col gap-2 w-full max-w-xs">
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              setHasPermission(null);
+              setError(null);
+              // Re-initialize scanner
+              setTimeout(() => {
+                window.location.reload();
+              }, 500);
+            }}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={handleClose}
+            className="text-slate-400 font-medium py-2 hover:text-slate-600 transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -472,10 +646,10 @@ export default function QRScannerPage() {
       </div>
 
       {/* QR Scanner */}
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center min-h-screen">
         <div className="relative w-[300px] h-[300px]">
           {/* Scanner Frame */}
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 pointer-events-none z-10">
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-indigo-500" />
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500" />
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500" />
@@ -486,7 +660,7 @@ export default function QRScannerPage() {
           <div
             id="qr-reader"
             className="w-full h-full"
-            ref={videoRef}
+            ref={qrReaderRef}
           />
 
           {/* Scan Line Animation */}
@@ -533,6 +707,13 @@ export default function QRScannerPage() {
             onClick={() => {
               setScanned(false);
               setIsScanning(true);
+              if (scannerRef.current) {
+                try {
+                  scannerRef.current.resume();
+                } catch (e) {
+                  console.error("Resume error:", e);
+                }
+              }
             }}
             className="flex flex-col items-center gap-2"
           >
