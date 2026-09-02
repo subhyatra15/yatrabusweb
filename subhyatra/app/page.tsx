@@ -52,7 +52,7 @@ export default function LoginPage() {
 
             if (response.data && response.data.refresh) {
               const user = JSON.parse(userData);
-              router.replace(user.role === "P" ? "/home" : "/home");
+              router.replace(user.role === "P" ? "/home" : "/operator");
               return;
             } else {
               // Token is invalid, clear storage
@@ -131,7 +131,7 @@ export default function LoginPage() {
         }
 
         alert("Login Successful! 🎉", "Welcome back to SubhYatra!");
-        router.push(response.data.user.role === "P" ? "/home" : "/home");
+        router.push(response.data.user.role === "P" ? "/home" : "/operator");
       } else {
         alert(
           "Login Failed",
@@ -187,7 +187,7 @@ export default function LoginPage() {
   // Show loading screen while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f8faff] via-[#eef2ff] to-[#e0e7ff]">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-[#f8faff] via-[#eef2ff] to-[#e0e7ff]">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto" />
           <p className="mt-4 text-indigo-600 font-medium">

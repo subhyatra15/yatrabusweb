@@ -233,7 +233,7 @@ export default function DriverDashboardPage() {
 
       if (!token) {
         console.error("No token found");
-        router.push("/login");
+        router.push("/");
         return;
       }
 
@@ -274,7 +274,7 @@ export default function DriverDashboardPage() {
 
       if (error.response?.status === 401) {
         localStorage.removeItem("accessToken");
-        router.push("/login");
+        router.push("/");
       }
     } finally {
       setLoading(false);

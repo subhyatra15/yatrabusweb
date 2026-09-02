@@ -176,15 +176,16 @@ export default function DriverProfilePage() {
 
   // Mark component as mounted
   useEffect(() => {
-    setIsComponentMounted(true);
-    return () => {
-      setIsComponentMounted(false);
-    };
+    fetchProfile()
+    // setIsComponentMounted(true);
+    // return () => {
+    //   setIsComponentMounted(false);
+    // };
   }, []);
 
   // Fetch profile
   const fetchProfile = useCallback(async () => {
-    if (!isComponentMounted) return;
+    // if (!isComponentMounted) return;
 
     try {
       setLoading(true);
@@ -302,7 +303,7 @@ export default function DriverProfilePage() {
         alert(error.response.data.message);
       } else if (error.response?.status === 401) {
         alert("Session expired. Please login again.");
-        router.push("/login");
+        router.push("/");
       } else {
         alert("Failed to update profile. Please try again.");
       }
@@ -321,7 +322,7 @@ export default function DriverProfilePage() {
   };
 
   // If not mounted yet, show loading
-  if (!isComponentMounted || loading) {
+  if (! loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
         <motion.div
@@ -342,7 +343,7 @@ export default function DriverProfilePage() {
     );
   }
 
-  if (!profile && !loading) {
+  if (!profile ) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
