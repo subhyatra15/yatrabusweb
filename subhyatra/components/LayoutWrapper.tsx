@@ -6,7 +6,7 @@ import SiteHeader from "./SiteHeader";
 
 const LayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
-  const showNav = pathname === "/" || pathname === "/signup" ||  pathname === "/signin";
+  const showNav = pathname === "/" || pathname === "/signup" ||  pathname === "/signin" || pathname.startsWith("/operator/") || pathname.startsWith("/operator");
   return (
     <>
       {!showNav ? <SiteHeader /> : null}
