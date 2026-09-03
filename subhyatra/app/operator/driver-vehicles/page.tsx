@@ -397,13 +397,8 @@ export default function DriverVehiclesPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push({
-                    pathname: "/add-route",
-                    query: {
-                      vehicleId: vehicle.id,
-                      vehicleType: vehicle.vehicleType,
-                    },
-                  });
+                  router.push(`/operator/add-route?vehicleId=${vehicle.id}&vehicleType=${vehicle.vehicleType}`
+);
                 }}
                 className="p-2 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors"
               >
@@ -412,13 +407,8 @@ export default function DriverVehiclesPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push({
-                    pathname: "/seats",
-                    query: {
-                      vehicleId: vehicle.id,
-                      vehicleType: vehicle.vehicleType,
-                    },
-                  });
+                  router.push(`/operator/seats?vehicleId=${vehicle.id}&vehicleType=${vehicle.vehicleType}`
+);
                 }}
                 className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
               >
@@ -427,13 +417,8 @@ export default function DriverVehiclesPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push({
-                    pathname: "/vehicles-edit",
-                    query: {
-                      id: vehicle.id,
-                      type: vehicle.vehicleType,
-                    },
-                  });
+                 router.push(`/operator/vehicles-edit?id=${vehicle.id}&type=${vehicle.vehicleType}`
+);
                 }}
                 className="p-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors"
               >
@@ -442,13 +427,9 @@ export default function DriverVehiclesPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push({
-                    pathname: "/schedule",
-                    query: {
-                      vehicleId: vehicle.id,
-                      vehicleType: vehicle.vehicleType,
-                    },
-                  });
+                 router.push(
+  `/operator/schedule?vehicleId=${encodeURIComponent(vehicle.id)}&vehicleType=${encodeURIComponent(vehicle.vehicleType)}`
+);
                 }}
                 className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
               >
@@ -921,13 +902,13 @@ export default function DriverVehiclesPage() {
                   </div>
                 )}
 
-                <button
+                {/* <button
                   onClick={handleAddVehicle}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
                 >
                   <Plus className="w-5 h-5" />
                   {usingDemoData ? "Demo Mode" : "Add Vehicle"}
-                </button>
+                </button> */}
               </div>
             </motion.div>
           </motion.div>
@@ -994,7 +975,7 @@ export default function DriverVehiclesPage() {
                   refreshing && "animate-spin"
                 )} />
               </motion.button>
-              <motion.button
+              {/* <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAddModal(true)}
@@ -1002,7 +983,7 @@ export default function DriverVehiclesPage() {
               >
                 <Plus className="w-5 h-5" />
                 Add Vehicle
-              </motion.button>
+              </motion.button> */}
             </div>
           </div>
         </div>
@@ -1116,7 +1097,7 @@ export default function DriverVehiclesPage() {
                   ? "You haven't added any vehicles yet"
                   : `You don't have any ${selectedFilter} vehicles`}
               </p>
-              {selectedFilter === "all" && !usingDemoData && (
+              {/* {selectedFilter === "all" && !usingDemoData && (
                 <button
                   onClick={() => setShowAddModal(true)}
                   className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm inline-flex items-center gap-2 shadow-lg shadow-indigo-500/25"
@@ -1124,7 +1105,7 @@ export default function DriverVehiclesPage() {
                   <Plus className="w-4 h-4" />
                   Add Vehicle
                 </button>
-              )}
+              )} */}
             </motion.div>
           )}
         </AnimatePresence>

@@ -333,16 +333,7 @@ export default function DriverDashboardPage() {
                   refreshing && "animate-spin"
                 )} />
               </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center relative hover:bg-indigo-100 transition-colors"
-              >
-                <Bell className="w-5 h-5 text-indigo-600" />
-                <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
-                  3
-                </span>
-              </motion.button>
+            
             </div>
           </div>
         </div>
@@ -393,19 +384,19 @@ export default function DriverDashboardPage() {
             <QuickAction
               icon={Scan}
               label="Scan Ticket"
-              onClick={() => router.push("/(operator)/QRScannerScreen")}
+              onClick={() => router.push("/operator/QRScannerScreen")}
               gradient="linear-gradient(135deg, #4f46e5, #7c3aed)"
             />
             <QuickAction
               icon={Calendar}
               label="View Trips"
-              onClick={() => router.push("/(operator)/driver-trips")}
+              onClick={() => router.push("/operator/driver-trips")}
               gradient="linear-gradient(135deg, #059669, #10b981)"
             />
             <QuickAction
               icon={Bus}
               label="My Vehicles"
-              onClick={() => router.push("/(operator)/driver-vehicles")}
+              onClick={() => router.push("/operator/driver-vehicles")}
               gradient="linear-gradient(135deg, #f59e0b, #d97706)"
             />
           </div>

@@ -35,7 +35,7 @@ export default function OperatorLayout({
       className={`${fraunces.variable} ${jakarta.variable} ${jbMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-paper text-ink">
-        <main className="min-h-screen pb-28">
+        <main className="min-h-screen pb-0">
           {children}
         </main>
 

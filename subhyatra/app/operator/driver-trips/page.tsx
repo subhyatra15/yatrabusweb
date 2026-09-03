@@ -486,7 +486,7 @@ export default function DriverTripsPage() {
                 <TripCard
                   key={trip.id}
                   trip={trip}
-                  onPress={() => router.push(`/trip-details?id=${trip.id}`)}
+                  onPress={() => router.push(`/operator/trip-details?id=${trip.id}`)}
                   onViewPassengers={() => {
                     setSelectedTrip(trip);
                     setShowPassengersModal(true);
