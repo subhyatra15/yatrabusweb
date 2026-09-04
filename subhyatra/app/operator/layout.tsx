@@ -1,9 +1,5 @@
-import OperatorHeader from "@/components/OperatorHeader";
-import {
-  Fraunces,
-  Plus_Jakarta_Sans,
-  JetBrains_Mono,
-} from "next/font/google";
+import OperatorLayoutWrapper from "@/components/OperatorLayoutWrapper";
+import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -36,10 +32,10 @@ export default function OperatorLayout({
     >
       <body className="min-h-full bg-paper text-ink">
         <main className="min-h-screen pb-0">
-          {children}
+          <OperatorLayoutWrapper>
+            {children}
+          </OperatorLayoutWrapper>
         </main>
-
-        <OperatorHeader />
       </body>
     </html>
   );
