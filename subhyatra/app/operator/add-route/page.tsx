@@ -1,17 +1,15 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, useMemo, memo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Plus,
   X,
-  ChevronDown,
   Search,
   MapPin,
-  Calendar,
   Clock,
   DollarSign,
   Bus,
@@ -21,15 +19,8 @@ import {
   Check,
   Loader2,
   RefreshCw,
-  AlertCircle,
-  Info,
   ArrowRight,
   Route,
-  Map,
-  Tag,
-  List,
-  Grid2x2,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
@@ -70,7 +61,387 @@ interface Route {
   created_at: string;
 }
 
- function AddRoutePageComp() {
+// Stop Modal Component - Completely isolated
+const StopModal = memo(({ 
+  show, 
+  onClose, 
+  onSave, 
+  stop, 
+  setStop,
+  cities,
+  editingStop,
+  initialCities
+}: any) => {
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [localFilteredCities, setLocalFilteredCities] = useState(initialCities || []);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Update filtered cities when cities prop changes
+  useEffect(() => {
+    if (cities) {
+      setLocalFilteredCities(cities);
+    }
+  }, [cities]);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (show && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+    }
+  }, [show]);
+
+  const handleCitySelect = useCallback((city: any) => {
+    setStop((prev: Stop) => ({ 
+      ...prev, 
+      city: city.name, 
+      cityId: city.id 
+    }));
+    setLocalSearchQuery("");
+    setLocalFilteredCities(cities);
+    // Keep focus on input after selection
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }, [cities, setStop]);
+
+  const searchCities = useCallback((query: string) => {
+    setLocalSearchQuery(query);
+    if (query.trim() === "") {
+      setLocalFilteredCities(cities);
+    } else {
+      const filtered = cities.filter((city: any) =>
+        city.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setLocalFilteredCities(filtered);
+    }
+  }, [cities]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    searchCities(e.target.value);
+  }, [searchCities]);
+
+  if (!show) return null;
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {editingStop ? "Edit Stop" : "Add Stop"}
+                </h3>
+                <button
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-900" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
+              {/* City Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  City *
+                </label>
+                <div className="relative">
+                  <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200/50">
+                    <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      inputMode="search"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      placeholder="Search city..."
+                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-slate-400 font-medium min-w-0"
+                      value={localSearchQuery}
+                      onChange={handleInputChange}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap mt-3 max-h-20 overflow-y-auto">
+                  {localFilteredCities.map((city: any) => (
+                    <button
+                      key={city.id}
+                      type="button"
+                      onClick={() => handleCitySelect(city)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex-shrink-0",
+                        stop.cityId === city.id
+                          ? "bg-indigo-50 text-indigo-600 border-2 border-indigo-500"
+                          : "bg-slate-50 text-slate-600 border-2 border-transparent hover:border-indigo-200"
+                      )}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                </div>
+                {stop.cityId > 0 && (
+                  <p className="text-sm font-semibold text-indigo-600 mt-2">
+                    ✓ Selected: {stop.city}
+                  </p>
+                )}
+              </div>
+
+              {/* Stop Order */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Stop Order
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-100 rounded-xl px-4 py-3 text-gray-900 outline-none cursor-not-allowed"
+                  value={stop.stopOrder}
+                  disabled
+                />
+              </div>
+
+              {/* Arrival Offset */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Arrival Offset (HH:MM:SS)
+                </label>
+                <input
+                  type="text"
+                  placeholder="00:00:00"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  value={stop.arrivalOffset}
+                  onChange={(e) => {
+                    e.preventDefault();
+                    setStop({ ...stop, arrivalOffset: e.target.value });
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {/* Departure Offset */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Departure Offset (HH:MM:SS)
+                </label>
+                <input
+                  type="text"
+                  placeholder="00:00:00"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  value={stop.departureOffset}
+                  onChange={(e) => {
+                    e.preventDefault();
+                    setStop({ ...stop, departureOffset: e.target.value });
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              {/* Switches */}
+              <div className="flex gap-6">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <span className="text-sm font-medium text-gray-700">Boarding</span>
+                  <div
+                    onClick={() => setStop({ ...stop, isBoarding: !stop.isBoarding })}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-colors cursor-pointer relative",
+                      stop.isBoarding ? "bg-indigo-600" : "bg-slate-300"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5",
+                        stop.isBoarding ? "translate-x-6" : "translate-x-0.5"
+                      )}
+                    />
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <span className="text-sm font-medium text-gray-700">Dropping</span>
+                  <div
+                    onClick={() => setStop({ ...stop, isDropping: !stop.isDropping })}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-colors cursor-pointer relative",
+                      stop.isDropping ? "bg-purple-600" : "bg-slate-300"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5",
+                        stop.isDropping ? "translate-x-6" : "translate-x-0.5"
+                      )}
+                    />
+                  </div>
+                </label>
+              </div>
+
+              <button
+                onClick={onSave}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+              >
+                {editingStop ? "Update Stop" : "Add Stop"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+});
+StopModal.displayName = 'StopModal';
+
+// Fare Modal Component - Completely isolated
+const FareModal = memo(({ 
+  show, 
+  onClose, 
+  onSave, 
+  fare, 
+  setFare,
+  stops,
+  editingFare
+}: any) => {
+  if (!show) return null;
+
+  const handleSelectChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>, field: string) => {
+    e.preventDefault();
+    setFare({ ...fare, [field]: parseInt(e.target.value) });
+  }, [fare, setFare]);
+
+  const handleFareChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    setFare({ ...fare, fare: e.target.value });
+  }, [fare, setFare]);
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {editingFare ? "Edit Fare" : "Add Fare"}
+                </h3>
+                <button
+                  onClick={onClose}
+                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-900" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
+              {/* From Stop */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  From Stop *
+                </label>
+                <select
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none"
+                  value={fare.fromStopId}
+                  onChange={(e) => handleSelectChange(e, 'fromStopId')}
+                >
+                  <option value="0">Select From Stop</option>
+                  {stops.map((stop: Stop) => (
+                    <option key={stop.stopOrder} value={stop.id || stop.stopOrder}>
+                      {stop.city} (Stop {stop.stopOrder})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* To Stop */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  To Stop *
+                </label>
+                <select
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none"
+                  value={fare.toStopId}
+                  onChange={(e) => handleSelectChange(e, 'toStopId')}
+                >
+                  <option value="0">Select To Stop</option>
+                  {stops
+                    .filter((stop: Stop) => {
+                      const stopId = stop.id || stop.stopOrder;
+                      return stopId !== fare.fromStopId;
+                    })
+                    .map((stop: Stop) => (
+                      <option key={stop.stopOrder} value={stop.id || stop.stopOrder}>
+                        {stop.city} (Stop {stop.stopOrder})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Fare */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Fare (NPR) *
+                </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Enter fare amount"
+                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  value={fare.fare}
+                  onChange={handleFareChange}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
+
+              <button
+                onClick={onSave}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+              >
+                {editingFare ? "Update Fare" : "Add Fare"}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+});
+FareModal.displayName = 'FareModal';
+
+function AddRoutePageComp() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const vehicleIdFromParams = searchParams.get("vehicleId") ? parseInt(searchParams.get("vehicleId")!) : null;
@@ -114,8 +485,6 @@ interface Route {
     fare: "",
   });
 
-  const [filteredCities, setFilteredCities] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"list" | "basic" | "stops" | "fares">("list");
   const [isEditing, setIsEditing] = useState(false);
 
@@ -128,7 +497,6 @@ interface Route {
       });
       if (response.data && response.data.results) {
         setCities(response.data.results);
-        setFilteredCities(response.data.results);
       }
     } catch (error) {
       console.error("Error fetching cities:", error);
@@ -155,7 +523,6 @@ interface Route {
           ...route,
           source_city_name: route.source_city_name,
           destination_city_name: route.destination_city_name
-
         }));
         setRoutes(routesWithCityNames);
       }
@@ -166,32 +533,20 @@ interface Route {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [vehicleIdFromParams]);
+  }, [vehicleIdFromParams, vehicleTypeFromParams]);
 
-  const getCityName = (cityId: number) => {
+  const getCityName = useCallback((cityId: number) => {
     const city = cities.find((c) => c.id === cityId);
     return city ? city.name : "Unknown";
-  };
+  }, [cities]);
 
-  const getStopName = (stopId: number) => {
+  const getStopName = useCallback((stopId: number) => {
     const stop = stops.find((s) => s.id === stopId || s.stopOrder === stopId);
     return stop ? stop.city : "Unknown";
-  };
-
-  const searchCities = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim() === "") {
-      setFilteredCities(cities);
-    } else {
-      const filtered = cities.filter((city) =>
-        city.name.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredCities(filtered);
-    }
-  };
+  }, [stops]);
 
   // Stop functions
-  const addStop = () => {
+  const addStop = useCallback(() => {
     if (!tempStop.cityId || !tempStop.city) {
       alert("Please select a city");
       return;
@@ -207,10 +562,7 @@ interface Route {
       setStops([...stops, { ...tempStop, stopOrder: stops.length + 1 }]);
     }
     setShowStopModal(false);
-    resetTempStop();
-  };
-
-  const resetTempStop = () => {
+    setEditingStop(null);
     setTempStop({
       city: "",
       cityId: 0,
@@ -220,16 +572,15 @@ interface Route {
       isBoarding: true,
       isDropping: true,
     });
-    setEditingStop(null);
-  };
+  }, [tempStop, editingStop, stops]);
 
-  const editStop = (stop: Stop) => {
+  const editStop = useCallback((stop: Stop) => {
     setEditingStop(stop);
     setTempStop(stop);
     setShowStopModal(true);
-  };
+  }, []);
 
-  const removeStop = (stopOrder: number) => {
+  const removeStop = useCallback((stopOrder: number) => {
     if (confirm("Are you sure you want to remove this stop?")) {
       const newStops = stops.filter((s) => s.stopOrder !== stopOrder);
       const reorderedStops = newStops.map((s, index) => ({
@@ -238,10 +589,10 @@ interface Route {
       }));
       setStops(reorderedStops);
     }
-  };
+  }, [stops]);
 
   // Fare functions
-  const addFare = () => {
+  const addFare = useCallback(() => {
     if (!tempFare.fromStopId || !tempFare.toStopId || !tempFare.fare) {
       alert("Please fill in all fields");
       return;
@@ -263,27 +614,23 @@ interface Route {
       setFares([...fares, tempFare]);
     }
     setShowFareModal(false);
-    resetTempFare();
-  };
-
-  const resetTempFare = () => {
+    setEditingFare(null);
     setTempFare({
       fromStopId: 0,
       toStopId: 0,
       fare: "",
     });
-    setEditingFare(null);
-  };
+  }, [tempFare, editingFare, fares]);
 
-  const removeFare = (index: number) => {
+  const removeFare = useCallback((index: number) => {
     if (confirm("Are you sure you want to remove this fare?")) {
       const newFares = fares.filter((_, i) => i !== index);
       setFares(newFares);
     }
-  };
+  }, [fares]);
 
   // Route edit
-  const handleEditRoute = (route: Route) => {
+  const handleEditRoute = useCallback((route: Route) => {
     setSelectedRoute(route);
     setSelectedSourceCity(route.source_city);
     setSelectedDestCity(route.destination_city);
@@ -316,9 +663,9 @@ interface Route {
 
     setIsEditing(true);
     setActiveTab("basic");
-  };
+  }, [getCityName]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setSelectedSourceCity(null);
     setSelectedDestCity(null);
     setDistance("");
@@ -328,9 +675,9 @@ interface Route {
     setFares([]);
     setIsEditing(false);
     setSelectedRoute(null);
-  };
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!selectedSourceCity || !selectedDestCity) {
       alert("Please select source and destination cities");
       return;
@@ -406,9 +753,23 @@ interface Route {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [
+    selectedSourceCity,
+    selectedDestCity,
+    stops,
+    fares,
+    distance,
+    duration,
+    baseFare,
+    vehicleIdFromParams,
+    vehicleTypeFromParams,
+    isEditing,
+    selectedRoute,
+    resetForm,
+    fetchRoutes
+  ]);
 
-  const handleDeleteRoute = (routeId: number) => {
+  const handleDeleteRoute = useCallback((routeId: number) => {
     if (confirm("Are you sure you want to delete this route?")) {
       (async () => {
         try {
@@ -430,12 +791,12 @@ interface Route {
         }
       })();
     }
-  };
+  }, [vehicleTypeFromParams, fetchRoutes]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchRoutes();
-  };
+  }, [fetchRoutes]);
 
   // Load data
   useEffect(() => {
@@ -444,296 +805,6 @@ interface Route {
   }, [fetchCities, fetchRoutes]);
 
   const VehicleIcon = vehicleTypeFromParams === "hiace" ? Car : Bus;
-
-  // Stop Modal
-  const StopModal = () => (
-    <AnimatePresence>
-      {showStopModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
-          onClick={() => setShowStopModal(false)}
-        >
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingStop ? "Edit Stop" : "Add Stop"}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowStopModal(false);
-                    resetTempStop();
-                  }}
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-900" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
-              {/* City Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  City *
-                </label>
-                <div className="relative">
-                  <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200/50">
-                    <Search className="w-5 h-5 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search city..."
-                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-slate-400 font-medium"
-                      value={searchQuery}
-                      onChange={(e) => searchCities(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap mt-3 max-h-20 overflow-y-auto">
-                  {filteredCities.map((city) => (
-                    <button
-                      key={city.id}
-                      onClick={() => {
-                        setTempStop({ ...tempStop, city: city.name, cityId: city.id });
-                        setSearchQuery("");
-                        setFilteredCities(cities);
-                      }}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-                        tempStop.cityId === city.id
-                          ? "bg-indigo-50 text-indigo-600 border-2 border-indigo-500"
-                          : "bg-slate-50 text-slate-400 border-2 border-transparent hover:border-indigo-200"
-                      )}
-                    >
-                      {city.name}
-                    </button>
-                  ))}
-                </div>
-                {tempStop.cityId > 0 && (
-                  <p className="text-sm font-semibold text-gray-900 mt-2">
-                    Selected: {tempStop.city}
-                  </p>
-                )}
-              </div>
-
-              {/* Stop Order */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Stop Order
-                </label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all cursor-not-allowed bg-slate-100"
-                  value={tempStop.stopOrder}
-                  disabled
-                />
-              </div>
-
-              {/* Arrival Offset */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Arrival Offset (HH:MM:SS)
-                </label>
-                <input
-                  type="text"
-                  placeholder="00:00:00"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  value={tempStop.arrivalOffset}
-                  onChange={(e) =>
-                    setTempStop({ ...tempStop, arrivalOffset: e.target.value })
-                  }
-                />
-              </div>
-
-              {/* Departure Offset */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Departure Offset (HH:MM:SS)
-                </label>
-                <input
-                  type="text"
-                  placeholder="00:00:00"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  value={tempStop.departureOffset}
-                  onChange={(e) =>
-                    setTempStop({ ...tempStop, departureOffset: e.target.value })
-                  }
-                />
-              </div>
-
-              {/* Switches */}
-              <div className="flex gap-6">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <span className="text-sm font-medium text-gray-700">Boarding</span>
-                  <div
-                    onClick={() => setTempStop({ ...tempStop, isBoarding: !tempStop.isBoarding })}
-                    className={cn(
-                      "w-12 h-6 rounded-full transition-colors cursor-pointer relative",
-                      tempStop.isBoarding ? "bg-indigo-600" : "bg-slate-300"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5",
-                        tempStop.isBoarding ? "translate-x-6" : "translate-x-0.5"
-                      )}
-                    />
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <span className="text-sm font-medium text-gray-700">Dropping</span>
-                  <div
-                    onClick={() => setTempStop({ ...tempStop, isDropping: !tempStop.isDropping })}
-                    className={cn(
-                      "w-12 h-6 rounded-full transition-colors cursor-pointer relative",
-                      tempStop.isDropping ? "bg-purple-600" : "bg-slate-300"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5",
-                        tempStop.isDropping ? "translate-x-6" : "translate-x-0.5"
-                      )}
-                    />
-                  </div>
-                </label>
-              </div>
-
-              <button
-                onClick={addStop}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
-              >
-                {editingStop ? "Update Stop" : "Add Stop"}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
-  // Fare Modal
-  const FareModal = () => (
-    <AnimatePresence>
-      {showFareModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
-          onClick={() => setShowFareModal(false)}
-        >
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-100">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingFare ? "Edit Fare" : "Add Fare"}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowFareModal(false);
-                    resetTempFare();
-                  }}
-                  className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-900" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
-              {/* From Stop */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  From Stop *
-                </label>
-                <select
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none"
-                  value={tempFare.fromStopId}
-                  onChange={(e) =>
-                    setTempFare({ ...tempFare, fromStopId: parseInt(e.target.value) })
-                  }
-                >
-                  <option value="0">Select From Stop</option>
-                  {stops.map((stop) => (
-                    <option key={stop.stopOrder} value={stop.id || stop.stopOrder}>
-                      {stop.city} (Stop {stop.stopOrder})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* To Stop */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  To Stop *
-                </label>
-                <select
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none"
-                  value={tempFare.toStopId}
-                  onChange={(e) =>
-                    setTempFare({ ...tempFare, toStopId: parseInt(e.target.value) })
-                  }
-                >
-                  <option value="0">Select To Stop</option>
-                  {stops
-                    .filter((stop) => {
-                      const stopId = stop.id || stop.stopOrder;
-                      return stopId !== tempFare.fromStopId;
-                    })
-                    .map((stop) => (
-                      <option key={stop.stopOrder} value={stop.id || stop.stopOrder}>
-                        {stop.city} (Stop {stop.stopOrder})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {/* Fare */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Fare (NPR) *
-                </label>
-                <input
-                  type="number"
-                  placeholder="Enter fare amount"
-                  className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  value={tempFare.fare}
-                  onChange={(e) =>
-                    setTempFare({ ...tempFare, fare: e.target.value })
-                  }
-                />
-              </div>
-
-              <button
-                onClick={addFare}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
-              >
-                {editingFare ? "Update Fare" : "Add Fare"}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 
   if (loading && routes.length === 0) {
     return (
@@ -998,10 +1069,14 @@ interface Route {
                     </label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Enter distance"
                       className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                       value={distance}
-                      onChange={(e) => setDistance(e.target.value)}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        setDistance(e.target.value);
+                      }}
                     />
                   </div>
 
@@ -1014,7 +1089,10 @@ interface Route {
                       placeholder="04:00:00"
                       className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                       value={duration}
-                      onChange={(e) => setDuration(e.target.value)}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        setDuration(e.target.value);
+                      }}
                     />
                   </div>
 
@@ -1024,10 +1102,14 @@ interface Route {
                     </label>
                     <input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Enter base fare"
                       className="w-full bg-slate-50 rounded-xl px-4 py-3 text-gray-900 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                       value={baseFare}
-                      onChange={(e) => setBaseFare(e.target.value)}
+                      onChange={(e) => {
+                        e.preventDefault();
+                        setBaseFare(e.target.value);
+                      }}
                     />
                   </div>
                 </div>
@@ -1055,7 +1137,7 @@ interface Route {
                           className="flex items-center justify-between bg-slate-50/80 rounded-xl p-3 border border-slate-200/50"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
                               <span className="text-sm font-bold text-indigo-600">
                                 {stop.stopOrder}
                               </span>
@@ -1133,7 +1215,7 @@ interface Route {
                               <span className="font-semibold text-gray-900">
                                 {getStopName(fare.fromStopId)}
                               </span>
-                              <ArrowRight className="w-4 h-4 text-slate-400" />
+                              <ArrowRight className="w-4 h-4 text-slate-400 flex-shrink-0" />
                               <span className="font-semibold text-gray-900">
                                 {getStopName(fare.toStopId)}
                               </span>
@@ -1196,19 +1278,56 @@ interface Route {
       </main>
 
       {/* Modals */}
-      <StopModal />
-      <FareModal />
+      <StopModal 
+        show={showStopModal}
+        onClose={() => {
+          setShowStopModal(false);
+          setEditingStop(null);
+          setTempStop({
+            city: "",
+            cityId: 0,
+            stopOrder: 0,
+            arrivalOffset: "00:00:00",
+            departureOffset: "00:00:00",
+            isBoarding: true,
+            isDropping: true,
+          });
+        }}
+        onSave={addStop}
+        stop={tempStop}
+        setStop={setTempStop}
+        cities={cities}
+        editingStop={!!editingStop}
+        initialCities={cities}
+      />
+      
+      <FareModal 
+        show={showFareModal}
+        onClose={() => {
+          setShowFareModal(false);
+          setEditingFare(null);
+          setTempFare({
+            fromStopId: 0,
+            toStopId: 0,
+            fare: "",
+          });
+        }}
+        onSave={addFare}
+        fare={tempFare}
+        setFare={setTempFare}
+        stops={stops}
+        editingFare={!!editingFare}
+      />
     </div>
   );
 }
 
-
 export default function AddRoutePage() {
-return (
+  return (
     <>
-    <Suspense fallback={<h1>Loading....</h1>}>
-      <AddRoutePageComp/>
-    </Suspense>
+      <Suspense fallback={<h1>Loading....</h1>}>
+        <AddRoutePageComp />
+      </Suspense>
     </>
-)
+  );
 }
