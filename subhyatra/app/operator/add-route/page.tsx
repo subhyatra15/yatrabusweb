@@ -144,7 +144,7 @@ interface Route {
       const isHiace = vehicleTypeFromParams === "hiace";
       const endpoint = isHiace
         ? `${API_URL}/api/v1/hiace-routes/?vehicle=${vehicleIdFromParams}`
-        : `${API_URL}/api/v1/routes/?bus=${vehicleIdFromParams}`;
+        : `${API_URL}/api/v1/bus-routes/?bus=${vehicleIdFromParams}`;
 
       const response = await axios.get(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
@@ -153,8 +153,9 @@ interface Route {
       if (response.data && response.data.results) {
         const routesWithCityNames = response.data.results.map((route: any) => ({
           ...route,
-          source_city_name: getCityName(route.source_city),
-          destination_city_name: getCityName(route.destination_city),
+          source_city_name: route.source_city_name,
+          destination_city_name: route.destination_city_name
+
         }));
         setRoutes(routesWithCityNames);
       }
@@ -165,7 +166,7 @@ interface Route {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [vehicleIdFromParams, vehicleTypeFromParams]);
+  }, [vehicleIdFromParams]);
 
   const getCityName = (cityId: number) => {
     const city = cities.find((c) => c.id === cityId);
@@ -415,7 +416,7 @@ interface Route {
           const isHiace = vehicleTypeFromParams === "hiace";
           const endpoint = isHiace
             ? `${API_URL}/api/v1/hiace-routes/${routeId}/`
-            : `${API_URL}/api/v1/routes/${routeId}/`;
+            : `${API_URL}/api/v1/bus-routes/${routeId}/`;
 
           await axios.delete(endpoint, {
             headers: { Authorization: `Bearer ${token}` },

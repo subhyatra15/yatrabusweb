@@ -19,7 +19,6 @@ import {
   ArrowRight,
   X,
   Loader2,
-
   TrendingUp,
   AlertCircle,
   Info,
@@ -28,7 +27,7 @@ import {
   Bed,
   Star as StarIcon,
   Grid2x2,
-
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
@@ -62,6 +61,7 @@ interface Seat {
   ttl?: number;
   available: boolean;
   selected: boolean;
+  extra_price?: string;
 }
 
 interface WebSocketSeatEvent {
@@ -651,11 +651,13 @@ function BusDetailsPageComp() {
       }
     });
 
+    // Sort seats by row and col
     const sortedSeats = [...busSeats].sort((a, b) => {
       if (a.row !== b.row) return a.row - b.row;
       return a.col - b.col;
     });
 
+    // Group seats by row
     const seatsByRow: { [key: number]: any[] } = {};
 
     sortedSeats.forEach((seat) => {
@@ -667,6 +669,7 @@ function BusDetailsPageComp() {
 
     const rows: any[] = [];
 
+    // Process each row maintaining the exact seat positions
     Object.keys(seatsByRow)
       .map(Number)
       .sort((a, b) => a - b)
@@ -684,6 +687,7 @@ function BusDetailsPageComp() {
             is_mine: false,
             selected_by: undefined,
             selected_by_name: undefined,
+            extra_price: seat.extra_price || "0.00",
           }));
 
         rows.push(rowSeats);
@@ -798,7 +802,6 @@ function BusDetailsPageComp() {
           seatLayout: data.seat_layout || { left: 2, right: 2 },
           status: data.status,
           operator: data.operator,
-          route: data.route,
           bus: data.bus,
         };
 
@@ -959,8 +962,26 @@ function BusDetailsPageComp() {
     return Sofa;
   };
 
+  // Calculate seat price with extra
+  const getSeatPrice = (seat: any) => {
+    const basePrice = busData?.price || 0;
+    const extraPrice = parseFloat(seat.extra_price) || 0;
+    return basePrice + extraPrice;
+  };
+
   // Total price
-  const totalPrice = selectedSeats.length * (busData?.price || 0);
+  const totalPrice = selectedSeats.reduce((total, seatId) => {
+    let seatPrice = busData?.price || 0;
+    seats.forEach((row) => {
+      row.forEach((s: any) => {
+        if (s.id === seatId) {
+          const extra = parseFloat(s.extra_price) || 0;
+          seatPrice += extra;
+        }
+      });
+    });
+    return total + seatPrice;
+  }, 0);
 
   // Handle confirm booking
   const handleConfirmBooking = async () => {
@@ -1389,117 +1410,149 @@ function BusDetailsPageComp() {
                           style={{ paddingLeft }}
                         >
                           <div className="flex gap-1.5">
-                            {leftSeats.map((seat: any, colIndex: number) => (
-                              <button
-                                key={`left-${colIndex}`}
-                                onClick={() => toggleSeat(rowIndex, colIndex)}
-                                disabled={!seat.available && !seat.is_mine}
-                                className={cn(
-                                  "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
-                                  !seat.available &&
-                                    !seat.is_mine &&
-                                    !seat.selected_by &&
-                                    "opacity-60",
-                                  seat.is_mine && "scale-105 border-indigo-600",
-                                  seat.seat_type === "SLEEPER" &&
-                                    "w-12 h-12 rounded-2xl",
-                                  seat.seat_type === "VIP" &&
-                                    "border-amber-400",
-                                )}
-                                style={{
-                                  backgroundColor: getSeatColor(seat),
-                                  borderColor: getSeatBorderColor(seat),
-                                }}
-                              >
-                                {seat.seat_type === "SLEEPER" ? (
-                                  <Bed
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                ) : seat.seat_type === "VIP" ? (
-                                  <StarIcon
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                ) : (
-                                  <Sofa
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                )}
-                                <span
-                                  className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
-                                  style={{ color: getSeatTextColor(seat) }}
+                            {leftSeats.map((seat: any, colIndex: number) => {
+                              const seatPrice = getSeatPrice(seat);
+                              const hasExtra = parseFloat(seat.extra_price) > 0;
+                              
+                              return (
+                                <button
+                                  key={`left-${colIndex}`}
+                                  onClick={() => toggleSeat(rowIndex, colIndex)}
+                                  disabled={!seat.available && !seat.is_mine}
+                                  className={cn(
+                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
+                                    !seat.available &&
+                                      !seat.is_mine &&
+                                      !seat.selected_by &&
+                                      "opacity-60",
+                                    seat.is_mine && "scale-105 border-indigo-600",
+                                    seat.seat_type === "SLEEPER" &&
+                                      "w-12 h-12 rounded-2xl",
+                                    seat.seat_type === "VIP" &&
+                                      "border-amber-400",
+                                    hasExtra && "border-dashed border-2 border-green-400"
+                                  )}
+                                  style={{
+                                    backgroundColor: getSeatColor(seat),
+                                    borderColor: hasExtra ? "#4ade80" : getSeatBorderColor(seat),
+                                  }}
                                 >
-                                  {seat.seat_number}
-                                </span>
-                                {seat.is_mine && (
-                                  <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
-                                )}
-                                {seat.is_window && (
-                                  <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
-                                )}
-                              </button>
-                            ))}
+                                  {seat.seat_type === "SLEEPER" ? (
+                                    <Bed
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  ) : seat.seat_type === "VIP" ? (
+                                    <StarIcon
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  ) : (
+                                    <Sofa
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  )}
+                                  <span
+                                    className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
+                                    style={{ color: getSeatTextColor(seat) }}
+                                  >
+                                    {seat.seat_number}
+                                  </span>
+                                  {seat.is_mine && (
+                                    <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
+                                  )}
+                                  {seat.is_window && (
+                                    <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
+                                  )}
+                                  {hasExtra && !seat.is_mine && !seat.selected_by && !seat.selected && (
+                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                      +Rs.{seat.extra_price}
+                                    </div>
+                                  )}
+                                  {hasExtra && (seat.is_mine || seat.selected) && (
+                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-indigo-100 text-indigo-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                      +Rs.{seat.extra_price}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
 
                           <div className="w-5" />
 
                           <div className="flex gap-1.5">
-                            {rightSeats.map((seat: any, colIndex: number) => (
-                              <button
-                                key={`right-${colIndex}`}
-                                onClick={() =>
-                                  toggleSeat(rowIndex, colIndex + halfIndex)
-                                }
-                                disabled={!seat.available && !seat.is_mine}
-                                className={cn(
-                                  "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
-                                  !seat.available &&
-                                    !seat.is_mine &&
-                                    !seat.selected_by &&
-                                    "opacity-60",
-                                  seat.is_mine && "scale-105 border-indigo-600",
-                                  seat.seat_type === "SLEEPER" &&
-                                    "w-12 h-12 rounded-2xl",
-                                  seat.seat_type === "VIP" &&
-                                    "border-amber-400",
-                                )}
-                                style={{
-                                  backgroundColor: getSeatColor(seat),
-                                  borderColor: getSeatBorderColor(seat),
-                                }}
-                              >
-                                {seat.seat_type === "SLEEPER" ? (
-                                  <Bed
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                ) : seat.seat_type === "VIP" ? (
-                                  <StarIcon
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                ) : (
-                                  <Sofa
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                )}
-                                <span
-                                  className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
-                                  style={{ color: getSeatTextColor(seat) }}
+                            {rightSeats.map((seat: any, colIndex: number) => {
+                              const seatPrice = getSeatPrice(seat);
+                              const hasExtra = parseFloat(seat.extra_price) > 0;
+                              
+                              return (
+                                <button
+                                  key={`right-${colIndex}`}
+                                  onClick={() =>
+                                    toggleSeat(rowIndex, colIndex + halfIndex)
+                                  }
+                                  disabled={!seat.available && !seat.is_mine}
+                                  className={cn(
+                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
+                                    !seat.available &&
+                                      !seat.is_mine &&
+                                      !seat.selected_by &&
+                                      "opacity-60",
+                                    seat.is_mine && "scale-105 border-indigo-600",
+                                    seat.seat_type === "SLEEPER" &&
+                                      "w-12 h-12 rounded-2xl",
+                                    seat.seat_type === "VIP" &&
+                                      "border-amber-400",
+                                    hasExtra && "border-dashed border-2 border-green-400"
+                                  )}
+                                  style={{
+                                    backgroundColor: getSeatColor(seat),
+                                    borderColor: hasExtra ? "#4ade80" : getSeatBorderColor(seat),
+                                  }}
                                 >
-                                  {seat.seat_number}
-                                </span>
-                                {seat.is_mine && (
-                                  <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
-                                )}
-                                {seat.is_window && (
-                                  <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
-                                )}
-                              </button>
-                            ))}
+                                  {seat.seat_type === "SLEEPER" ? (
+                                    <Bed
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  ) : seat.seat_type === "VIP" ? (
+                                    <StarIcon
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  ) : (
+                                    <Sofa
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                  )}
+                                  <span
+                                    className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
+                                    style={{ color: getSeatTextColor(seat) }}
+                                  >
+                                    {seat.seat_number}
+                                  </span>
+                                  {seat.is_mine && (
+                                    <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
+                                  )}
+                                  {seat.is_window && (
+                                    <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
+                                  )}
+                                  {hasExtra && !seat.is_mine && !seat.selected_by && !seat.selected && (
+                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                      +Rs.{seat.extra_price}
+                                    </div>
+                                  )}
+                                  {hasExtra && (seat.is_mine || seat.selected) && (
+                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-indigo-100 text-indigo-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                      +Rs.{seat.extra_price}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       );

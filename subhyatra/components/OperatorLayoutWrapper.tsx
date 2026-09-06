@@ -5,7 +5,7 @@ import OperatorHeader from "@/components/OperatorHeader";
 
 const OperatorLayoutWrapper = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
-  const showNav = pathname === "/operator/add-route" || pathname ==="/operator/seats" || pathname ==="/operator/vehicles-edit" || pathname ==="/operator/schedule";
+  const showNav = pathname === "/operator/add-route" || pathname ==="/operator/seats" || pathname ==="/operator/vehicles-edit" || pathname ==="/operator/schedule" || pathname==="/operator/trip-details";
   return (
     <>
       {children}
