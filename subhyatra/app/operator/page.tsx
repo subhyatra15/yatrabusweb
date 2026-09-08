@@ -413,7 +413,7 @@ export default function DriverDashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-gray-900">Active Trips</h3>
               <button
-                onClick={() => router.push("/(operator)/driver-trips")}
+                onClick={() => router.push("/operator/driver-trips")}
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
               >
                 See All →
@@ -424,7 +424,7 @@ export default function DriverDashboardPage() {
                 <TripCard
                   key={trip.id}
                   trip={trip}
-                  onPress={() => router.push(`/driver/trip/${trip.id}`)}
+                  onPress={() => router.push(`/operator/trip-details?id=${trip.id}`)}
                 />
               ))}
             </div>
@@ -442,7 +442,7 @@ export default function DriverDashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-gray-900">Upcoming Trips</h3>
               <button
-                onClick={() => router.push("/(operator)/driver-trips")}
+                onClick={() => router.push("/operator/driver-trips")}
                 className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
               >
                 See All →
@@ -453,7 +453,7 @@ export default function DriverDashboardPage() {
                 <TripCard
                   key={trip.id}
                   trip={trip}
-                  onPress={() => router.push(`/driver/trip/${trip.id}`)}
+                  onPress={() => router.push(`/operator/trip-details?id=${trip.id}`)}
                 />
               ))}
             </div>

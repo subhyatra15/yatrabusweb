@@ -51,6 +51,7 @@ interface BookingData {
   bookingStatus: string;
   bookingNumber: string;
   discount: number;
+  platform_amount:number;
 }
 
 // Helper functions
@@ -193,6 +194,7 @@ function PaymentPageComp() {
           bookingStatus: data.booking_status,
           bookingNumber: data.booking_number,
           discount: parseFloat(data.discount) || 0,
+          platform_amount:parseFloat(data.platform_amount) || 0,
         };
 
         setBookingData(transformedData);
@@ -717,6 +719,10 @@ function PaymentPageComp() {
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Tax</span>
               <span className="font-semibold text-gray-900">Rs. {bookingData.tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">Platform Charge</span>
+              <span className="font-semibold text-gray-900">Rs. {bookingData.platform_amount.toFixed(2)}</span>
             </div>
             <div className="border-t border-slate-200 pt-2 mt-2">
               <div className="flex justify-between">

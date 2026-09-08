@@ -166,7 +166,7 @@ const StopModal = memo(({
                 </label>
                 <div className="relative">
                   <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200/50">
-                    <Search className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    <Search className="w-5 h-5 text-slate-400 shrink-0" />
                     <input
                       ref={inputRef}
                       type="text"
@@ -193,7 +193,7 @@ const StopModal = memo(({
                       type="button"
                       onClick={() => handleCitySelect(city)}
                       className={cn(
-                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex-shrink-0",
+                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0",
                         stop.cityId === city.id
                           ? "bg-indigo-50 text-indigo-600 border-2 border-indigo-500"
                           : "bg-slate-50 text-slate-600 border-2 border-transparent hover:border-indigo-200"
@@ -299,7 +299,7 @@ const StopModal = memo(({
 
               <button
                 onClick={onSave}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
               >
                 {editingStop ? "Update Stop" : "Add Stop"}
               </button>
@@ -428,7 +428,7 @@ const FareModal = memo(({
 
               <button
                 onClick={onSave}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
               >
                 {editingFare ? "Update Fare" : "Add Fare"}
               </button>
@@ -808,14 +808,14 @@ function AddRoutePageComp() {
 
   if (loading && routes.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <Route className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
@@ -827,7 +827,7 @@ function AddRoutePageComp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
