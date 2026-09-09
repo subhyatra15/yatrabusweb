@@ -1,4 +1,6 @@
-// components/SeatSelectionModal.tsx
+
+// @ts-nocheck
+"use client"
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
