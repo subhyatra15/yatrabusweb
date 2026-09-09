@@ -1316,7 +1316,7 @@ function BusDetailsPageComp() {
         </div>
       </motion.div>
 
-      {/* Seat Selection Modal */}
+      {/* Seat Selection Modal - FIXED GRID LAYOUT */}
       <AnimatePresence>
         {showSeatModal && (
           <motion.div
@@ -1378,9 +1378,9 @@ function BusDetailsPageComp() {
                   </div>
                 </div>
 
-                {/* Seats Layout */}
+                {/* Seats Layout - FIXED 6-COLUMN GRID WITH AISLE */}
                 <div className="relative">
-                  {/* Driver indicator */}
+                  {/* Driver indicator - top right */}
                   <div className="flex justify-end mb-4">
                     <div className="flex flex-col items-center">
                       <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center border-2 border-indigo-200">
@@ -1392,45 +1392,73 @@ function BusDetailsPageComp() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center gap-2">
-                    {seats.map((row, rowIndex) => {
-                      const maxSeats = getMaxSeatsInRow();
-                      const isCentered = row.length < maxSeats;
-                      const paddingLeft = isCentered
-                        ? (maxSeats - row.length) * 28
-                        : 0;
-                      const halfIndex = Math.floor(row.length / 2);
-                      const leftSeats = row.slice(0, halfIndex);
-                      const rightSeats = row.slice(halfIndex);
+                  {/* Bus body with aisle */}
+                  <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-200/50">
+                    <div className="flex flex-col items-center gap-2.5">
+                      {seats.map((row, rowIndex) => {
+                        const totalSeats = row.length;
 
-                      return (
-                        <div
-                          key={rowIndex}
-                          className="flex items-center gap-2"
-                          style={{ paddingLeft }}
-                        >
-                          <div className="flex gap-1.5">
-                            {leftSeats.map((seat: any, colIndex: number) => {
-                              const seatPrice = getSeatPrice(seat);
+                        const gridSeats = [];
+                        const cols = 6;
+                        
+                        if (totalSeats === 4) {
+                          // Positions: 0,1 have seats; 2,3 are empty (aisle); 4,5 have seats
+                          for (let i = 0; i < cols; i++) {
+                            if (i < 2) {
+                              gridSeats.push(row[i]);
+                            } else if (i < 4) {
+                              gridSeats.push(null); // Empty (aisle)
+                            } else {
+                              gridSeats.push(row[i - 2]);
+                            }
+                          }
+                        } else if (totalSeats === 5) {
+                          // Positions: 0,1,2 have seats; 3 is empty (aisle); 4,5 have seats
+                          for (let i = 0; i < cols; i++) {
+                            if (i < 3) {
+                              gridSeats.push(row[i]);
+                            } else if (i === 3) {
+                              gridSeats.push(null); // Empty (aisle)
+                            } else {
+                              gridSeats.push(row[i - 1]);
+                            }
+                          }
+                        } else {
+                          // 6 seats: all positions filled
+                          for (let i = 0; i < cols; i++) {
+                            gridSeats.push(row[i]);
+                          }
+                        }
+
+                        return (
+                          <div key={rowIndex} className="flex items-center gap-0 w-full justify-center">
+                            {gridSeats.map((seat, colIndex) => {
+                              if (seat === null) {
+                                // Empty space (aisle)
+                                return (
+                                  <div
+                                    key={`empty-${colIndex}`}
+                                    className="w-11 h-11 shrink-0 mx-0.5"
+                                  />
+                                );
+                              }
+                              
                               const hasExtra = parseFloat(seat.extra_price) > 0;
+                              const isAisleSeat = colIndex === 2 || colIndex === 3;
                               
                               return (
                                 <button
-                                  key={`left-${colIndex}`}
+                                  key={`seat-${colIndex}`}
                                   onClick={() => toggleSeat(rowIndex, colIndex)}
                                   disabled={!seat.available && !seat.is_mine}
                                   className={cn(
-                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
-                                    !seat.available &&
-                                      !seat.is_mine &&
-                                      !seat.selected_by &&
-                                      "opacity-60",
-                                    seat.is_mine && "scale-105 border-indigo-600",
-                                    seat.seat_type === "SLEEPER" &&
-                                      "w-12 h-12 rounded-2xl",
-                                    seat.seat_type === "VIP" &&
-                                      "border-amber-400",
-                                    hasExtra && "border-dashed border-2 border-green-400"
+                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center flex-shrink-0 mx-0.5",
+                                    !seat.available && !seat.is_mine && !seat.selected_by && "opacity-60 cursor-not-allowed",
+                                    seat.is_mine && "scale-105 border-indigo-600 shadow-lg shadow-indigo-500/30",
+                                    seat.seat_type === "SLEEPER" && "w-12 h-12 rounded-2xl",
+                                    seat.seat_type === "VIP" && "border-amber-400",
+                                    hasExtra && "border-dashed border-2 border-green-400",
+                                    seat.available && !seat.selected && "hover:scale-105 hover:shadow-md"
                                   )}
                                   style={{
                                     backgroundColor: getSeatColor(seat),
@@ -1438,20 +1466,11 @@ function BusDetailsPageComp() {
                                   }}
                                 >
                                   {seat.seat_type === "SLEEPER" ? (
-                                    <Bed
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
+                                    <Bed className="w-5 h-5" style={{ color: getSeatTextColor(seat) }} />
                                   ) : seat.seat_type === "VIP" ? (
-                                    <StarIcon
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
+                                    <StarIcon className="w-5 h-5" style={{ color: getSeatTextColor(seat) }} />
                                   ) : (
-                                    <Sofa
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
+                                    <Sofa className="w-5 h-5" style={{ color: getSeatTextColor(seat) }} />
                                   )}
                                   <span
                                     className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
@@ -1464,6 +1483,11 @@ function BusDetailsPageComp() {
                                   )}
                                   {seat.is_window && (
                                     <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
+                                  )}
+                                  {isAisleSeat && (
+                                    <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-[8px] text-slate-400 font-medium whitespace-nowrap">
+                                      Aisle
+                                    </div>
                                   )}
                                   {hasExtra && !seat.is_mine && !seat.selected_by && !seat.selected && (
                                     <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
@@ -1479,84 +1503,9 @@ function BusDetailsPageComp() {
                               );
                             })}
                           </div>
-
-                          <div className="w-5" />
-
-                          <div className="flex gap-1.5">
-                            {rightSeats.map((seat: any, colIndex: number) => {
-                              const seatPrice = getSeatPrice(seat);
-                              const hasExtra = parseFloat(seat.extra_price) > 0;
-                              
-                              return (
-                                <button
-                                  key={`right-${colIndex}`}
-                                  onClick={() =>
-                                    toggleSeat(rowIndex, colIndex + halfIndex)
-                                  }
-                                  disabled={!seat.available && !seat.is_mine}
-                                  className={cn(
-                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
-                                    !seat.available &&
-                                      !seat.is_mine &&
-                                      !seat.selected_by &&
-                                      "opacity-60",
-                                    seat.is_mine && "scale-105 border-indigo-600",
-                                    seat.seat_type === "SLEEPER" &&
-                                      "w-12 h-12 rounded-2xl",
-                                    seat.seat_type === "VIP" &&
-                                      "border-amber-400",
-                                    hasExtra && "border-dashed border-2 border-green-400"
-                                  )}
-                                  style={{
-                                    backgroundColor: getSeatColor(seat),
-                                    borderColor: hasExtra ? "#4ade80" : getSeatBorderColor(seat),
-                                  }}
-                                >
-                                  {seat.seat_type === "SLEEPER" ? (
-                                    <Bed
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
-                                  ) : seat.seat_type === "VIP" ? (
-                                    <StarIcon
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
-                                  ) : (
-                                    <Sofa
-                                      className="w-5 h-5"
-                                      style={{ color: getSeatTextColor(seat) }}
-                                    />
-                                  )}
-                                  <span
-                                    className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  >
-                                    {seat.seat_number}
-                                  </span>
-                                  {seat.is_mine && (
-                                    <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
-                                  )}
-                                  {seat.is_window && (
-                                    <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
-                                  )}
-                                  {hasExtra && !seat.is_mine && !seat.selected_by && !seat.selected && (
-                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
-                                      +Rs.{seat.extra_price}
-                                    </div>
-                                  )}
-                                  {hasExtra && (seat.is_mine || seat.selected) && (
-                                    <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-indigo-100 text-indigo-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
-                                      +Rs.{seat.extra_price}
-                                    </div>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
