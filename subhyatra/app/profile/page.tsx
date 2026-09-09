@@ -129,7 +129,7 @@ export default function ProfilePage() {
     {
       icon: HelpCircle,
       title: "Help & Support",
-      href: "/profile/help",
+      href: "/help",
       color: "#8b5cf6",
     },
   ];

@@ -901,7 +901,14 @@ export default function HomePage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div onClick={()=> {
+
+                        const route = activeVehicleTab === "bus" ? "/buslist" : "/hiacelist";
+                        const date = new Date();
+                         router.push(
+      `${route}?from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(toCity)}&date=${formatDateForAPI(date)}`
+    );
+                      }} className="text-right cursor-pointer">
                         <p className="font-extrabold text-indigo-600 text-lg">Rs. {fare}</p>
                         <span className="inline-block bg-linear-to-r from-indigo-600 to-purple-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-shadow">
                           Book Now
