@@ -6,46 +6,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import {
   Bus,
   Car,
   Ticket,
   Clock,
-  Calendar,
-  MapPin,
   ArrowRight,
-  ChevronRight,
   X,
   Loader2,
   RefreshCw,
-  Search,
-  Filter,
-  Share2,
   QrCode,
   AlertCircle,
   CheckCircle,
   Clock as ClockIcon,
   XCircle,
   Info,
-  Eye,
-  MoreVertical,
-  CalendarDays,
-  User,
-  Phone,
-  Mail,
-  MapPin as MapPinIcon,
-  DollarSign,
-  CreditCard,
-  Receipt,
-  Printer,
-  Download,
-  Star,
-  TrendingUp,
-  Award,
-  Shield,
-  Check,
-  ChevronDown,
+  Share2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -55,7 +31,9 @@ import { QRCodeCanvas } from "qrcode.react";
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
 
-// Types
+// ============================================================
+// TYPES
+// ============================================================
 interface BookingSeat {
   seat: number;
   price: string;
@@ -119,16 +97,61 @@ interface TransformedBooking {
   vehicleType: "bus" | "hiace";
 }
 
-// Components
-const TabButton = ({ 
-  label, 
-  count, 
-  isActive, 
-  onClick 
-}: { 
-  label: string; 
-  count: number; 
-  isActive: boolean; 
+type VehicleTab = "bus" | "hiace";
+type StatusTab = "upcoming" | "completed" | "cancelled";
+
+// ============================================================
+// REUSABLE UI COMPONENTS
+// ============================================================
+
+/** Top-level vehicle switcher (Bus / Hiace) */
+const VehicleTabButton = ({
+  label,
+  icon: Icon,
+  count,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  icon: any;
+  count: number;
+  isActive: boolean;
+  onClick: () => void;
+}) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={cn(
+      "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all font-semibold text-sm",
+      isActive
+        ? "bg-linear-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-lg shadow-indigo-500/25"
+        : "bg-white text-slate-500 border-slate-200 hover:border-indigo-200 hover:text-indigo-600"
+    )}
+  >
+    <Icon className="w-4 h-4" />
+    <span>{label}</span>
+    <span
+      className={cn(
+        "text-xs font-bold px-2 py-0.5 rounded-full",
+        isActive ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400"
+      )}
+    >
+      {count}
+    </span>
+  </motion.button>
+);
+
+/** Sub-status tab */
+const StatusTabButton = ({
+  label,
+  count,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  isActive: boolean;
   onClick: () => void;
 }) => (
   <motion.button
@@ -143,24 +166,27 @@ const TabButton = ({
     )}
   >
     <span className="font-semibold text-sm capitalize">{label}</span>
-    <span className={cn(
-      "text-xs font-bold px-2 py-0.5 rounded-full",
-      isActive
-        ? "bg-indigo-100 text-indigo-600"
-        : "bg-slate-200 text-slate-400"
-    )}>
+    <span
+      className={cn(
+        "text-xs font-bold px-2 py-0.5 rounded-full",
+        isActive ? "bg-indigo-100 text-indigo-600" : "bg-slate-200 text-slate-400"
+      )}
+    >
       {count}
     </span>
   </motion.button>
 );
 
-const BookingCard = ({ 
-  booking, 
-  onPress, 
-  onQRPress 
-}: { 
-  booking: TransformedBooking; 
-  onPress: () => void; 
+// ============================================================
+// BOOKING CARD
+// ============================================================
+const BookingCard = ({
+  booking,
+  onPress,
+  onQRPress,
+}: {
+  booking: TransformedBooking;
+  onPress: () => void;
   onQRPress: () => void;
 }) => {
   const statusColors = {
@@ -201,12 +227,12 @@ const BookingCard = ({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-              booking.vehicleType === "hiace" 
-                ? "bg-emerald-50" 
-                : "bg-indigo-50"
-            )}>
+            <div
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                booking.vehicleType === "hiace" ? "bg-emerald-50" : "bg-indigo-50"
+              )}
+            >
               {booking.vehicleType === "hiace" ? (
                 <Car className="w-6 h-6 text-emerald-600" />
               ) : (
@@ -215,13 +241,17 @@ const BookingCard = ({
             </div>
             <div>
               <h4 className="font-bold text-gray-900">{booking.busName}</h4>
-              <p className="text-sm text-slate-400">{booking.vehicleType === "hiace" ? "Hiace" : "Bus"}</p>
+              <p className="text-sm text-slate-400">
+                {booking.vehicleType === "hiace" ? "Hiace" : "Bus"}
+              </p>
             </div>
           </div>
-          <div className={cn(
-            "flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold",
-            statusColors[booking.status]
-          )}>
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold",
+              statusColors[booking.status]
+            )}
+          >
             <StatusIcon className="w-3.5 h-3.5" />
             {statusLabels[booking.status]}
           </div>
@@ -269,7 +299,7 @@ const BookingCard = ({
               QR Code
             </motion.button>
           )}
-          {(booking.bookingStatus === "PENDING") && (
+          {booking.bookingStatus === "PENDING" && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -289,16 +319,18 @@ const BookingCard = ({
   );
 };
 
-// Pending Payment Modal
-const PendingPaymentModal = ({ 
-  visible, 
-  onClose, 
-  booking, 
-  onPayNow 
-}: { 
-  visible: boolean; 
-  onClose: () => void; 
-  booking: TransformedBooking | null; 
+// ============================================================
+// PENDING PAYMENT MODAL
+// ============================================================
+const PendingPaymentModal = ({
+  visible,
+  onClose,
+  booking,
+  onPayNow,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  booking: TransformedBooking | null;
   onPayNow: () => void;
 }) => {
   const [timeRemaining, setTimeRemaining] = useState({ minutes: 0, seconds: 0 });
@@ -361,32 +393,39 @@ const PendingPaymentModal = ({
                 Complete your payment to confirm your booking
               </p>
 
-              {/* Timer */}
               {!isExpired && booking.expiredAt && (
                 <div className="w-full bg-slate-50 rounded-xl p-4 mt-4">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <div className="text-center">
-                      <span className={cn(
-                        "text-3xl font-extrabold font-mono",
-                        timeRemaining.minutes === 0 && timeRemaining.seconds < 60 ? "text-red-500" : "text-gray-900"
-                      )}>
-                        {String(timeRemaining.minutes).padStart(2, '0')}
+                      <span
+                        className={cn(
+                          "text-3xl font-extrabold font-mono",
+                          timeRemaining.minutes === 0 && timeRemaining.seconds < 60
+                            ? "text-red-500"
+                            : "text-gray-900"
+                        )}
+                      >
+                        {String(timeRemaining.minutes).padStart(2, "0")}
                       </span>
                       <span className="text-sm text-slate-400 font-medium ml-1">m</span>
                     </div>
                     <span className="text-2xl font-bold text-slate-300">:</span>
                     <div className="text-center">
-                      <span className={cn(
-                        "text-3xl font-extrabold font-mono",
-                        timeRemaining.minutes === 0 && timeRemaining.seconds < 60 ? "text-red-500" : "text-gray-900"
-                      )}>
-                        {String(timeRemaining.seconds).padStart(2, '0')}
+                      <span
+                        className={cn(
+                          "text-3xl font-extrabold font-mono",
+                          timeRemaining.minutes === 0 && timeRemaining.seconds < 60
+                            ? "text-red-500"
+                            : "text-gray-900"
+                        )}
+                      >
+                        {String(timeRemaining.seconds).padStart(2, "0")}
                       </span>
                       <span className="text-sm text-slate-400 font-medium ml-1">s</span>
                     </div>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className={cn(
                         "h-full rounded-full transition-all",
                         totalSeconds < 60 ? "bg-red-500" : "bg-amber-500"
@@ -400,11 +439,12 @@ const PendingPaymentModal = ({
               {isExpired && (
                 <div className="w-full bg-red-50 rounded-xl p-3 mt-4 flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-red-500" />
-                  <span className="text-sm font-semibold text-red-600">Booking has expired</span>
+                  <span className="text-sm font-semibold text-red-600">
+                    Booking has expired
+                  </span>
                 </div>
               )}
 
-              {/* Booking Summary */}
               <div className="w-full bg-slate-50 rounded-xl p-4 mt-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-400">Vehicle</span>
@@ -414,19 +454,24 @@ const PendingPaymentModal = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-400">Route</span>
-                  <span className="text-sm font-semibold text-gray-900">{booking.from} → {booking.to}</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {booking.from} → {booking.to}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-slate-400">Seats</span>
-                  <span className="text-sm font-semibold text-gray-900">{booking.seatNumbers?.join(", ")}</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {booking.seatNumbers?.join(", ")}
+                  </span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-slate-200">
                   <span className="text-sm font-semibold text-gray-900">Total</span>
-                  <span className="text-lg font-extrabold text-indigo-600">Rs. {booking.totalAmount}</span>
+                  <span className="text-lg font-extrabold text-indigo-600">
+                    Rs. {booking.totalAmount}
+                  </span>
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3 w-full mt-6">
                 <button
                   onClick={onClose}
@@ -456,23 +501,23 @@ const PendingPaymentModal = ({
   );
 };
 
-// QR Code Modal
-const QRCodeModal = ({ 
-  visible, 
-  onClose, 
-  booking 
-}: { 
-  visible: boolean; 
-  onClose: () => void; 
+// ============================================================
+// QR CODE MODAL
+// ============================================================
+const QRCodeModal = ({
+  visible,
+  onClose,
+  booking,
+}: {
+  visible: boolean;
+  onClose: () => void;
   booking: TransformedBooking | null;
 }) => {
-  const [showShare, setShowShare] = useState(false);
-
   if (!booking) return null;
 
   const handleShare = async () => {
     try {
-      const shareMessage = 
+      const shareMessage =
         `🎫 Booking #${booking.bookingNumber}\n` +
         `🚌 Vehicle: ${booking.vehicleType === "hiace" ? "Hiace" : "Bus"} - ${booking.busName}\n` +
         `🔑 QR Token: ${booking.qrToken}\n` +
@@ -481,7 +526,7 @@ const QRCodeModal = ({
         `📅 ${booking.date}\n` +
         `🕐 ${booking.time}\n\n` +
         `Show this QR code to the conductor for verification.`;
-      
+
       if (navigator.share) {
         await navigator.share({
           title: `Booking ${booking.bookingNumber}`,
@@ -523,7 +568,6 @@ const QRCodeModal = ({
               </button>
             </div>
 
-            {/* QR Code */}
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-white rounded-xl border-2 border-slate-200">
                 {booking.qrToken ? (
@@ -543,7 +587,6 @@ const QRCodeModal = ({
               </div>
             </div>
 
-            {/* Info */}
             <div className="bg-indigo-50 rounded-xl p-3 mb-4 space-y-1">
               <div className="flex items-center gap-2 text-sm text-indigo-600">
                 <Info className="w-4 h-4" />
@@ -551,15 +594,18 @@ const QRCodeModal = ({
               </div>
               <div className="flex items-center gap-2 text-sm text-indigo-600">
                 <Ticket className="w-4 h-4" />
-                <span className="font-medium">Token: {booking.qrToken.substring(0, 8)}...</span>
+                <span className="font-medium">
+                  Token: {booking.qrToken.substring(0, 8)}...
+                </span>
               </div>
             </div>
 
-            {/* Details */}
             <div className="bg-slate-50 rounded-xl p-4 space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Booking #</span>
-                <span className="text-sm font-semibold text-gray-900">{booking.bookingNumber}</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {booking.bookingNumber}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Vehicle</span>
@@ -569,11 +615,15 @@ const QRCodeModal = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Seats</span>
-                <span className="text-sm font-semibold text-gray-900">{booking.seatNumbers?.join(", ")}</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {booking.seatNumbers?.join(", ")}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Route</span>
-                <span className="text-sm font-semibold text-gray-900">{booking.from} → {booking.to}</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {booking.from} → {booking.to}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-slate-400">Date</span>
@@ -585,7 +635,6 @@ const QRCodeModal = ({
               </div>
             </div>
 
-            {/* Share Button */}
             <button
               onClick={handleShare}
               className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
@@ -600,7 +649,9 @@ const QRCodeModal = ({
   );
 };
 
-// Empty State
+// ============================================================
+// EMPTY STATE
+// ============================================================
 const EmptyState = ({ tab, onExplore }: { tab: string; onExplore: () => void }) => {
   const messages = {
     upcoming: "No upcoming bookings found",
@@ -625,7 +676,9 @@ const EmptyState = ({ tab, onExplore }: { tab: string; onExplore: () => void }) 
       <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
         <Icon className="w-10 h-10 text-slate-300" />
       </div>
-      <h3 className="text-lg font-bold text-gray-900 mt-4">{messages[tab as keyof typeof messages] || "No bookings"}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mt-4">
+        {messages[tab as keyof typeof messages] || "No bookings"}
+      </h3>
       <p className="text-sm text-slate-400 mt-2">Start your journey with SubhYatra</p>
       <button
         onClick={onExplore}
@@ -637,21 +690,68 @@ const EmptyState = ({ tab, onExplore }: { tab: string; onExplore: () => void }) 
   );
 };
 
-// Main Component
+// ============================================================
+// LIST COMPONENT (reusable for Bus / Hiace)
+// ============================================================
+const BookingsList = ({
+  bookings,
+  activeTab,
+  onBookingPress,
+  onQRPress,
+  onExplore,
+}: {
+  bookings: TransformedBooking[];
+  activeTab: StatusTab;
+  onBookingPress: (b: TransformedBooking) => void;
+  onQRPress: (b: TransformedBooking) => void;
+  onExplore: () => void;
+}) => {
+  if (bookings.length === 0) {
+    return <EmptyState tab={activeTab} onExplore={onExplore} />;
+  }
+
+  return (
+    <motion.div
+      key={activeTab}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-4"
+    >
+      {bookings.map((booking) => (
+        <BookingCard
+          key={booking.id}
+          booking={booking}
+          onPress={() => onBookingPress(booking)}
+          onQRPress={() => onQRPress(booking)}
+        />
+      ))}
+    </motion.div>
+  );
+};
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
 export default function BookingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("upcoming");
+
+  // Vehicle-level tab
+  const [vehicleTab, setVehicleTab] = useState<VehicleTab>("bus");
+  // Status-level tab (per vehicle)
+  const [statusTab, setStatusTab] = useState<StatusTab>("upcoming");
+
   const [bookings, setBookings] = useState<TransformedBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<TransformedBooking | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<TransformedBooking | null>(null);
-  const [customerDetails, setCustomerDetails] = useState<any>(null);
 
-  // Helper functions
+  // ------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------
   const formatDate = (datetime: string): string => {
     if (!datetime) return "N/A";
     try {
@@ -670,7 +770,6 @@ export default function BookingsPage() {
     }
   };
 
-  // Transform bookings
   const transformBookings = (apiBookings: any[]): TransformedBooking[] => {
     return apiBookings.map((booking) => {
       let status: "upcoming" | "completed" | "cancelled" | "pending" | "expired";
@@ -681,19 +780,11 @@ export default function BookingsPage() {
 
       switch (bookingStatus) {
         case "PENDING":
-          if (expiredAt && now > expiredAt) {
-            status = "expired";
-          } else {
-            status = "pending";
-          }
+          status = expiredAt && now > expiredAt ? "expired" : "pending";
           break;
         case "PAID":
         case "CONFIRMED":
-          if (departureDate < now) {
-            status = "completed";
-          } else {
-            status = "upcoming";
-          }
+          status = departureDate < now ? "completed" : "upcoming";
           break;
         case "COMPLETED":
           status = "completed";
@@ -713,7 +804,7 @@ export default function BookingsPage() {
         return s.seat.toString();
       });
 
-      const vehicleType = booking.vehicle_type || 'bus';
+      const vehicleType = booking.vehicle_type || "bus";
 
       return {
         id: booking.id,
@@ -722,13 +813,14 @@ export default function BookingsPage() {
         to: booking.dropping_stop?.city || "N/A",
         date: formatDate(booking.schedule.departure_datetime),
         time: formatTime(booking.schedule.departure_datetime),
-        busName: booking.schedule.route.bus_name || 
-                booking.schedule?.bus_name || 
-                (vehicleType === "hiace" ? "Hiace" : "Bus"),
+        busName:
+          booking.schedule.route.bus_name ||
+          booking.schedule?.bus_name ||
+          (vehicleType === "hiace" ? "Hiace" : "Bus"),
         seat: seatNumbers.join(", ") || "N/A",
-        seatNumbers: seatNumbers,
+        seatNumbers,
         price: `Rs. ${parseFloat(booking.total_amount).toFixed(2)}`,
-        status: status,
+        status,
         duration: booking.schedule.route.duration || "N/A",
         totalAmount: booking.total_amount,
         subtotal: booking.subtotal,
@@ -741,36 +833,20 @@ export default function BookingsPage() {
         createdAt: booking.created_at,
         expiredAt: booking.expired_at,
         qrToken: booking.qr_token || "",
-        vehicleType: vehicleType,
+        vehicleType,
       };
     });
   };
 
-  // Fetch customer details
-  const fetchCustomerDetails = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const response = await axios.get(`${API_URL}/api/v1/verify-token/`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-      if (response.data) {
-        setCustomerDetails(response.data.user);
-      }
-    } catch (error) {
-      console.error("Error fetching customer details:", error);
-    }
-  }, []);
-
-  // Fetch bookings
+  // ------------------------------------------------------------
+  // Fetching
+  // ------------------------------------------------------------
   const fetchBookings = useCallback(async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("accessToken");
-      
-      const [busBookingsResponse, hiaceBookingsResponse] = await Promise.all([
+
+      const [busRes, hiaceRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/bookings/`, {
           headers: {
             "Content-Type": "application/json",
@@ -784,58 +860,57 @@ export default function BookingsPage() {
             ...(token && { Authorization: `Bearer ${token}` }),
           },
           timeout: 15000,
-        })
+        }),
       ]);
 
-      let allBookings = [];
-      
-      if (busBookingsResponse.data && busBookingsResponse.data.results) {
-        const busBookings = busBookingsResponse.data.results.map((b: any) => ({
-          ...b,
-          vehicle_type: 'bus'
-        }));
-        allBookings = [...allBookings, ...busBookings];
+      let allBookings: any[] = [];
+
+      if (busRes.data?.results) {
+        allBookings = [
+          ...allBookings,
+          ...busRes.data.results.map((b: any) => ({ ...b, vehicle_type: "bus" })),
+        ];
       }
-      
-      if (hiaceBookingsResponse.data && hiaceBookingsResponse.data.results) {
-        const hiaceBookings = hiaceBookingsResponse.data.results.map((b: any) => ({
-          ...b,
-          vehicle_type: 'hiace'
-        }));
-        allBookings = [...allBookings, ...hiaceBookings];
+      if (hiaceRes.data?.results) {
+        allBookings = [
+          ...allBookings,
+          ...hiaceRes.data.results.map((b: any) => ({ ...b, vehicle_type: "hiace" })),
+        ];
       }
 
-      allBookings.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      allBookings.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log("Total bookings:", allBookings.length);
-      
       if (allBookings.length > 0) {
-        const transformedBookings = transformBookings(allBookings);
-        setBookings(transformedBookings);
+        setBookings(transformBookings(allBookings));
+      } else {
+        setBookings([]);
       }
     } catch (error) {
       console.error("Error fetching bookings:", error);
-      if (error.response?.status === 401) {
-        // Handle unauthorized
-      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // Get filtered bookings
-  const getFilteredBookings = (): TransformedBooking[] => {
-    return bookings.filter((booking) => {
-      const now = new Date();
+  // ------------------------------------------------------------
+  // Filtering (per vehicle, per status)
+  // ------------------------------------------------------------
+  const getVehicleBookings = (vehicle: VehicleTab) =>
+    bookings.filter((b) => b.vehicleType === vehicle);
+
+  const getStatusFiltered = (vehicle: VehicleTab, status: StatusTab): TransformedBooking[] => {
+    const now = new Date();
+    return getVehicleBookings(vehicle).filter((booking) => {
       const departureDate = new Date(booking.schedule.departure_datetime);
-      
-      switch (activeTab) {
+      switch (status) {
         case "upcoming":
-          return booking.status === "pending" || 
-                 (booking.status === "upcoming" && departureDate >= now);
+          return (
+            booking.status === "pending" ||
+            (booking.status === "upcoming" && departureDate >= now)
+          );
         case "completed":
           return booking.status === "completed";
         case "cancelled":
@@ -846,50 +921,47 @@ export default function BookingsPage() {
     });
   };
 
-  // Handle booking press
+  // ------------------------------------------------------------
+  // Handlers
+  // ------------------------------------------------------------
   const handleBookingPress = (booking: TransformedBooking) => {
     if (booking.bookingStatus === "PAID" || booking.bookingStatus === "CONFIRMED") {
-      setSelectedBooking(booking);
-      setShowDetailsModal(true);
-    } 
-    else if (booking.bookingStatus === "PENDING") {
+      if (booking.qrToken) {
+        setSelectedBooking(booking);
+        setShowQRModal(true);
+      } else {
+        alert("This booking doesn't have a QR code token.");
+      }
+    } else if (booking.bookingStatus === "PENDING") {
       if (booking.expiredAt) {
         const now = new Date();
-        const expiryDate = new Date(booking.expiredAt);
-        if (now > expiryDate) {
+        if (now > new Date(booking.expiredAt)) {
           alert("This booking has expired. Please create a new booking.");
           return;
         }
       }
       setPendingBooking(booking);
       setShowPendingModal(true);
-    }
-    else {
+    } else {
       alert(`This booking is ${booking.bookingStatus?.toLowerCase()}.`);
     }
   };
 
-  // Handle show QR
   const handleShowQR = (booking: TransformedBooking) => {
-    console.log("=== QR CODE DEBUG ===");
-    console.log("Booking ID:", booking.id);
-    console.log("QR Token:", booking.qrToken);
-    console.log("Vehicle Type:", booking.vehicleType);
-
     if (!booking.qrToken) {
       alert("This booking doesn't have a QR code token.");
       return;
     }
-
     if (booking.bookingStatus === "PAID" || booking.bookingStatus === "CONFIRMED") {
       setSelectedBooking(booking);
       setShowQRModal(true);
     } else {
-      alert(`QR code is only available for confirmed bookings. Current status: ${booking.bookingStatus}`);
+      alert(
+        `QR code is only available for confirmed bookings. Current status: ${booking.bookingStatus}`
+      );
     }
   };
 
-  // Handle pay now
   const handlePayNow = () => {
     if (pendingBooking) {
       setShowPendingModal(false);
@@ -897,25 +969,44 @@ export default function BookingsPage() {
     }
   };
 
-  // Handle refresh
   const onRefresh = () => {
     setRefreshing(true);
     fetchBookings();
   };
 
-  // Load data
+  // ------------------------------------------------------------
+  // Effects
+  // ------------------------------------------------------------
   useEffect(() => {
     fetchBookings();
-    fetchCustomerDetails();
-  }, [fetchBookings, fetchCustomerDetails]);
+  }, [fetchBookings]);
 
-  const filteredBookings = getFilteredBookings();
-  const counts = {
-    upcoming: bookings.filter(b => b.status === "pending" || b.status === "upcoming").length,
-    completed: bookings.filter(b => b.status === "completed").length,
-    cancelled: bookings.filter(b => b.status === "cancelled" || b.status === "expired").length,
+  // ------------------------------------------------------------
+  // Counts
+  // ------------------------------------------------------------
+  const busBookings = getVehicleBookings("bus");
+  const hiaceBookings = getVehicleBookings("hiace");
+
+  const busCounts = {
+    upcoming: busBookings.filter((b) => b.status === "pending" || b.status === "upcoming").length,
+    completed: busBookings.filter((b) => b.status === "completed").length,
+    cancelled: busBookings.filter((b) => b.status === "cancelled" || b.status === "expired").length,
   };
 
+  const hiaceCounts = {
+    upcoming: hiaceBookings.filter((b) => b.status === "pending" || b.status === "upcoming").length,
+    completed: hiaceBookings.filter((b) => b.status === "completed").length,
+    cancelled: hiaceBookings.filter(
+      (b) => b.status === "cancelled" || b.status === "expired"
+    ).length,
+  };
+
+  const activeCounts = vehicleTab === "bus" ? busCounts : hiaceCounts;
+  const filteredBookings = getStatusFiltered(vehicleTab, statusTab);
+
+  // ------------------------------------------------------------
+  // Loading screen
+  // ------------------------------------------------------------
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
@@ -936,6 +1027,9 @@ export default function BookingsPage() {
     );
   }
 
+  // ------------------------------------------------------------
+  // Render
+  // ------------------------------------------------------------
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
@@ -956,58 +1050,62 @@ export default function BookingsPage() {
               onClick={onRefresh}
               className="w-10 h-10 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
             >
-              <RefreshCw className={cn(
-                "w-5 h-5 text-white",
-                refreshing && "animate-spin"
-              )} />
+              <RefreshCw className={cn("w-5 h-5 text-white", refreshing && "animate-spin")} />
             </motion.button>
           </div>
         </div>
       </motion.div>
 
       <main className="max-w-6xl mx-auto px-4 py-6 pb-12">
-        {/* Tabs */}
+        {/* ============ VEHICLE TABS (Bus / Hiace) ============ */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex gap-3 mb-5"
+        >
+          <VehicleTabButton
+            label="Bus"
+            icon={Bus}
+            count={busBookings.length}
+            isActive={vehicleTab === "bus"}
+            onClick={() => setVehicleTab("bus")}
+          />
+          <VehicleTabButton
+            label="Hiace"
+            icon={Car}
+            count={hiaceBookings.length}
+            isActive={vehicleTab === "hiace"}
+            onClick={() => setVehicleTab("hiace")}
+          />
+        </motion.div>
+
+        {/* ============ STATUS TABS ============ */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide"
         >
-          {["upcoming", "completed", "cancelled"].map((tab) => (
-            <TabButton
+          {(["upcoming", "completed", "cancelled"] as StatusTab[]).map((tab) => (
+            <StatusTabButton
               key={tab}
               label={tab}
-              count={counts[tab as keyof typeof counts] || 0}
-              isActive={activeTab === tab}
-              onClick={() => setActiveTab(tab)}
+              count={activeCounts[tab]}
+              isActive={statusTab === tab}
+              onClick={() => setStatusTab(tab)}
             />
           ))}
         </motion.div>
 
-        {/* Bookings List */}
+        {/* ============ BOOKINGS LIST ============ */}
         <AnimatePresence mode="wait">
-          {filteredBookings.length > 0 ? (
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
-            >
-              {filteredBookings.map((booking) => (
-                <BookingCard
-                  key={booking.id}
-                  booking={booking}
-                  onPress={() => handleBookingPress(booking)}
-                  onQRPress={() => handleShowQR(booking)}
-                />
-              ))}
-            </motion.div>
-          ) : (
-            <EmptyState
-              tab={activeTab}
-              onExplore={() => router.push("/")}
-            />
-          )}
+          <BookingsList
+            key={`${vehicleTab}-${statusTab}`}
+            bookings={filteredBookings}
+            activeTab={statusTab}
+            onBookingPress={handleBookingPress}
+            onQRPress={handleShowQR}
+            onExplore={() => router.push("/")}
+          />
         </AnimatePresence>
       </main>
 
