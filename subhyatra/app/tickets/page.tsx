@@ -31,9 +31,6 @@ import { QRCodeCanvas } from "qrcode.react";
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
 
-// ============================================================
-// TYPES
-// ============================================================
 interface BookingSeat {
   seat: number;
   price: string;
@@ -177,9 +174,7 @@ const StatusTabButton = ({
   </motion.button>
 );
 
-// ============================================================
-// BOOKING CARD
-// ============================================================
+
 const BookingCard = ({
   booking,
   onPress,
@@ -649,9 +644,7 @@ const QRCodeModal = ({
   );
 };
 
-// ============================================================
-// EMPTY STATE
-// ============================================================
+
 const EmptyState = ({ tab, onExplore }: { tab: string; onExplore: () => void }) => {
   const messages = {
     upcoming: "No upcoming bookings found",
@@ -730,9 +723,7 @@ const BookingsList = ({
   );
 };
 
-// ============================================================
-// MAIN PAGE
-// ============================================================
+
 export default function BookingsPage() {
   const router = useRouter();
 
@@ -749,9 +740,6 @@ export default function BookingsPage() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [pendingBooking, setPendingBooking] = useState<TransformedBooking | null>(null);
 
-  // ------------------------------------------------------------
-  // Helpers
-  // ------------------------------------------------------------
   const formatDate = (datetime: string): string => {
     if (!datetime) return "N/A";
     try {
@@ -895,9 +883,7 @@ export default function BookingsPage() {
     }
   }, []);
 
-  // ------------------------------------------------------------
-  // Filtering (per vehicle, per status)
-  // ------------------------------------------------------------
+
   const getVehicleBookings = (vehicle: VehicleTab) =>
     bookings.filter((b) => b.vehicleType === vehicle);
 
@@ -921,9 +907,7 @@ export default function BookingsPage() {
     });
   };
 
-  // ------------------------------------------------------------
-  // Handlers
-  // ------------------------------------------------------------
+
   const handleBookingPress = (booking: TransformedBooking) => {
     if (booking.bookingStatus === "PAID" || booking.bookingStatus === "CONFIRMED") {
       if (booking.qrToken) {
@@ -974,16 +958,11 @@ export default function BookingsPage() {
     fetchBookings();
   };
 
-  // ------------------------------------------------------------
-  // Effects
-  // ------------------------------------------------------------
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-  // ------------------------------------------------------------
-  // Counts
-  // ------------------------------------------------------------
+
   const busBookings = getVehicleBookings("bus");
   const hiaceBookings = getVehicleBookings("hiace");
 
@@ -1004,9 +983,7 @@ export default function BookingsPage() {
   const activeCounts = vehicleTab === "bus" ? busCounts : hiaceCounts;
   const filteredBookings = getStatusFiltered(vehicleTab, statusTab);
 
-  // ------------------------------------------------------------
-  // Loading screen
-  // ------------------------------------------------------------
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">

@@ -1,13 +1,12 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Car,
   ArrowLeft,
-  RefreshCw,
   Wifi,
   Battery,
   Snowflake,
@@ -15,50 +14,30 @@ import {
   Droplets,
   CheckCircle,
   Clock,
-  Star,
-  User,
-  Phone,
-  MapPin,
-  Navigation,
-  Calendar,
   ArrowRight,
+  LifeBuoy,
   X,
   Loader2,
-  Shield,
-  Award,
-  TrendingUp,
   AlertCircle,
-  Info,
   Check,
   Sofa,
-  Bed,
-  Star as StarIcon,
   Grid2x2,
-  LogIn,
-  LogOut,
-  ChevronDown,
   Share2,
   Users,
-  Gauge,
-  Heart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import dynamic from "next/dynamic";
 
-
-// Import components
 import HiaceDetailsCard from "@/components/HiaceDetailsCard";
 
 const HiaceDetailsMap = dynamic(
   () => import("@/components/HiaceDetailsMap"),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 );
 import HiaceDetailsDriverInfo from "@/components/HiaceDetailsDriverInfo";
 
-// Types
+// ---------------- Types ----------------
 interface LayoutCell {
   type: "SEAT" | "STEERING" | "EMPTY";
   data?: {
@@ -72,13 +51,33 @@ interface LayoutCell {
     available: boolean;
     selected: boolean;
     booked: boolean;
+    is_mine?: boolean;
+    selected_by?: number;
+    selected_by_name?: string;
   };
 }
 
-// API URL
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
+interface WebSocketSeatEvent {
+  type:
+    | "initial_seats"
+    | "seat_selected"
+    | "seat_available"
+    | "error"
+    | "pong"
+    | "use_api";
+  seat_id?: string;
+  user_id?: number;
+  username?: string;
+  seats?: any[];
+  message?: string;
+}
 
-// Custom Hiace seat layout with steering wheel on right
+// ---------------- Config ----------------
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
+const WS_URL =
+  process.env.NEXT_PUBLIC_WS_URL || "ws://192.168.101.18:8000";
+
 const HIACE_LAYOUT = [
   ["SEAT", "SEAT", null, "STEERING"],
   [null, "SEAT", "SEAT", "SEAT"],
@@ -87,32 +86,20 @@ const HIACE_LAYOUT = [
   ["SEAT", "SEAT", "SEAT", "SEAT"],
 ];
 
-// Helper functions
+// ---------------- Helpers ----------------
 const formatTime = (datetime: string) => {
   if (!datetime) return "N/A";
-  const date = new Date(datetime);
-  return date.toLocaleTimeString("en-US", {
+  return new Date(datetime).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
 };
 
-const formatDate = (datetime: string) => {
-  if (!datetime) return "N/A";
-  const date = new Date(datetime);
-  return date.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
 const calculateDuration = (departure: string, arrival: string) => {
   if (!departure || !arrival) return "N/A";
-  const start = new Date(departure);
-  const end = new Date(arrival);
-  const diffMs = end.getTime() - start.getTime();
+  const diffMs =
+    new Date(arrival).getTime() - new Date(departure).getTime();
   const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
   const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   if (diffHrs > 0) {
@@ -133,6 +120,9 @@ const getAmenities = (data: any) => {
     : [{ name: "Standard", icon: CheckCircle }];
 };
 
+// =================================================================
+// MAIN COMPONENT
+// =================================================================
 function HiaceDetailsPageComp() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -145,14 +135,13 @@ function HiaceDetailsPageComp() {
   const boardingStopId = searchParams.get("boardingStopId");
   const droppingStopId = searchParams.get("droppingStopId");
 
-  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
-  const [selectedSeatNumbers, setSelectedSeatNumbers] = useState<string[]>([]);
+  // ---------------- State ----------------
+  const [seats, setSeats] = useState<LayoutCell[][]>([]);
   const [showSeatModal, setShowSeatModal] = useState(false);
   const [showDriverInfo, setShowDriverInfo] = useState(false);
   const [hiaceData, setHiaceData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
-  const [seats, setSeats] = useState<LayoutCell[][]>([]);
   const [currentLocation, setCurrentLocation] = useState({
     latitude: 27.7172,
     longitude: 85.324,
@@ -162,21 +151,461 @@ function HiaceDetailsPageComp() {
     longitude: 83.9856,
   });
 
-  // Fetch hiace details
+  // Realtime
+  const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+
+  // Refs
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectAttempts = useRef(0);
+  const maxReconnectAttempts = 5;
+  const reconnectDelay = 3000;
+  const userIdRef = useRef<number | null>(null);
+
+  // -------- Derive selected seats from `seats` --------
+  const { selectedSeats, selectedSeatNumbers } = useMemo(() => {
+    const ids: number[] = [];
+    const nums: string[] = [];
+    seats.forEach((row) => {
+      row.forEach((cell) => {
+        if (
+          cell.type === "SEAT" &&
+          cell.data &&
+          cell.data.selected &&
+          cell.data.is_mine
+        ) {
+          ids.push(cell.data.id);
+          nums.push(cell.data.seat_number);
+        }
+      });
+    });
+    return { selectedSeats: ids, selectedSeatNumbers: nums };
+  }, [seats]);
+
+  // ---------- User ID ----------
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const uid = payload.user_id || payload.sub;
+        setUserId(uid);
+        userIdRef.current = uid;
+        console.log("Current User ID:", uid);
+      } catch (e) {
+        console.error("Failed to parse token", e);
+      }
+    }
+  }, []);
+
+  // ---------- Fetch Hiace ----------
   useEffect(() => {
     fetchHiaceDetails();
   }, [id]);
 
-  // Process seats data with custom layout
+  // ---------- WebSocket lifecycle ----------
+  useEffect(() => {
+    if (scheduleId && userId !== null) {
+      connectWebSocket();
+    }
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [scheduleId, userId]);
+
+  // ---------- WebSocket ----------
+  const connectWebSocket = () => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    const wsUrl = `${WS_URL}/ws/hiacetrips/${scheduleId}/seats/?token=${token}`;
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    console.log("🔌 Connecting to Hiace WebSocket:", wsUrl);
+    wsRef.current = new WebSocket(wsUrl);
+
+    wsRef.current.onopen = () => {
+      console.log("✅ Hiace Seats WebSocket connected");
+      setIsWebSocketConnected(true);
+      reconnectAttempts.current = 0;
+    };
+
+    wsRef.current.onmessage = (event) => {
+      try {
+        const data: WebSocketSeatEvent = JSON.parse(event.data);
+        handleWebSocketMessage(data);
+      } catch (e) {
+        console.error("WS parse error", e);
+      }
+    };
+
+    wsRef.current.onclose = () => {
+      console.log("❌ Hiace Seats WebSocket disconnected");
+      setIsWebSocketConnected(false);
+      handleReconnect();
+    };
+
+    wsRef.current.onerror = (err) => {
+      console.error("❌ Hiace WS error:", err);
+    };
+  };
+
+  const handleReconnect = () => {
+    if (reconnectAttempts.current < maxReconnectAttempts) {
+      reconnectAttempts.current++;
+      setTimeout(() => {
+        console.log(`Reconnecting attempt ${reconnectAttempts.current}`);
+        connectWebSocket();
+      }, reconnectDelay * reconnectAttempts.current);
+    }
+  };
+
+  const handleWebSocketMessage = (data: WebSocketSeatEvent) => {
+    console.log("WS message:", data);
+
+    switch (data.type) {
+      case "initial_seats":
+        if (data.seats) {
+          const ids = new Set<string>();
+          data.seats.forEach((s: any) => {
+            if (s.user_id) ids.add(s.seat_id);
+          });
+          setSelectedSeatIds(ids);
+          updateSeatsFromWebSocket(data.seats);
+        }
+        break;
+
+      case "seat_selected":
+        if (data.seat_id) {
+          setSelectedSeatIds((prev) => new Set(prev).add(data.seat_id!));
+          markSeatAsSelected(data.seat_id, data.user_id, data.username);
+        }
+        break;
+
+      case "seat_available":
+        if (data.seat_id) {
+          setSelectedSeatIds((prev) => {
+            const n = new Set(prev);
+            n.delete(data.seat_id!);
+            return n;
+          });
+          markSeatAsAvailable(data.seat_id);
+        }
+        break;
+
+      case "use_api":
+        console.log("Backend says use API:", data.message);
+        break;
+
+      case "error":
+        console.warn("WS error:", data.message);
+        break;
+    }
+  };
+
+  // ---------- Seat State Updates ----------
+  const updateSeatsFromWebSocket = (wsSeats: any[]) => {
+    const uid = userIdRef.current;
+    setSeats((prev) =>
+      prev.map((row) =>
+        row.map((cell) => {
+          if (cell.type !== "SEAT" || !cell.data) return cell;
+
+          const wsSeat = wsSeats.find(
+            (s: any) => s.seat_id === cell.data!.id.toString()
+          );
+
+          if (wsSeat) {
+            const isMine =
+              uid != null && Number(wsSeat.user_id) === Number(uid);
+            return {
+              ...cell,
+              data: {
+                ...cell.data,
+                available: false,
+                selected_by: wsSeat.user_id,
+                selected_by_name: wsSeat.name,
+                is_mine: isMine,
+                selected: isMine,
+              },
+            };
+          }
+
+          if (!cell.data.booked) {
+            return {
+              ...cell,
+              data: {
+                ...cell.data,
+                available: true,
+                selected_by: undefined,
+                selected_by_name: undefined,
+                is_mine: false,
+                selected: false,
+              },
+            };
+          }
+          return cell;
+        })
+      )
+    );
+  };
+
+  const markSeatAsSelected = (
+    seatId: string,
+    selectedByUserId?: number,
+    username?: string
+  ) => {
+    const uid = userIdRef.current;
+    const isMine =
+      uid != null &&
+      selectedByUserId != null &&
+      Number(selectedByUserId) === Number(uid);
+
+    setSeats((prev) =>
+      prev.map((row) =>
+        row.map((cell) => {
+          if (
+            cell.type === "SEAT" &&
+            cell.data &&
+            cell.data.id.toString() === seatId
+          ) {
+            return {
+              ...cell,
+              data: {
+                ...cell.data,
+                available: false,
+                selected_by: selectedByUserId,
+                selected_by_name: username,
+                is_mine: isMine,
+                selected: isMine,
+              },
+            };
+          }
+          return cell;
+        })
+      )
+    );
+  };
+
+  const markSeatAsAvailable = (seatId: string) => {
+    setSeats((prev) =>
+      prev.map((row) =>
+        row.map((cell) => {
+          if (
+            cell.type === "SEAT" &&
+            cell.data &&
+            cell.data.id.toString() === seatId
+          ) {
+            return {
+              ...cell,
+              data: {
+                ...cell.data,
+                available: true,
+                selected_by: undefined,
+                selected_by_name: undefined,
+                is_mine: false,
+                selected: false,
+              },
+            };
+          }
+          return cell;
+        })
+      )
+    );
+  };
+
+  // ---------- API: select seat ----------
+  const selectSeatAPI = async (seatId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await axios.post(
+        `${API_URL}/api/v1/hiacetrips/${scheduleId}/seats/${seatId}/select/`,
+        {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        // ✅ Optimistically mark as MINE (green) immediately
+        const uid = userIdRef.current;
+        setSeats((prev) =>
+          prev.map((row) =>
+            row.map((cell) => {
+              if (
+                cell.type === "SEAT" &&
+                cell.data &&
+                cell.data.id.toString() === seatId
+              ) {
+                return {
+                  ...cell,
+                  data: {
+                    ...cell.data,
+                    available: false,
+                    selected_by: uid,
+                    selected_by_name: response.data.username || "You",
+                    is_mine: true,
+                    selected: true,
+                  },
+                };
+              }
+              return cell;
+            })
+          )
+        );
+        setSelectedSeatIds((prev) => new Set(prev).add(seatId));
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      console.error("Error selecting seat:", error);
+
+      // ---------------------------------------------------------
+      // ✅ Handle 409 — check if it's actually YOU who locked it
+      // ---------------------------------------------------------
+      if (error.response?.status === 409) {
+        const selectedBy = error.response?.data?.selected_by;
+        const selectedById =
+          selectedBy?.user_id ?? selectedBy?.id ?? null;
+        const myId = userIdRef.current;
+
+        const isMine =
+          selectedById != null &&
+          myId != null &&
+          Number(selectedById) === Number(myId);
+
+        if (isMine) {
+          // It's YOUR seat — sync state, no alert
+          console.log("Seat is already yours — syncing state.");
+          setSeats((prev) =>
+            prev.map((row) =>
+              row.map((cell) => {
+                if (
+                  cell.type === "SEAT" &&
+                  cell.data &&
+                  cell.data.id.toString() === seatId
+                ) {
+                  return {
+                    ...cell,
+                    data: {
+                      ...cell.data,
+                      available: false,
+                      selected_by: myId,
+                      selected_by_name: selectedBy?.name || "You",
+                      is_mine: true,
+                      selected: true,
+                    },
+                  };
+                }
+                return cell;
+              })
+            )
+          );
+          setSelectedSeatIds((prev) => new Set(prev).add(seatId));
+          return true;
+        }
+
+        // Genuinely someone else
+        alert(
+          `Seat Already Selected\nThis seat is already selected by ${
+            selectedBy?.name || "another user"
+          }`
+        );
+        return false;
+      }
+
+      alert("Failed to select seat. Please try again.");
+      return false;
+    }
+  };
+
+  // ---------- API: release seat ----------
+  const releaseSeatAPI = async (seatId: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      await axios.delete(
+        `${API_URL}/api/v1/hiacetrips/${scheduleId}/seats/${seatId}/release/`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setSelectedSeatIds((prev) => {
+        const n = new Set(prev);
+        n.delete(seatId);
+        return n;
+      });
+      markSeatAsAvailable(seatId);
+      return true;
+    } catch (error: any) {
+      console.error("Error releasing seat:", error);
+      alert("Failed to release seat. Please try again.");
+      return false;
+    }
+  };
+
+  // ---------- Toggle seat ----------
+  const toggleSeat = async (rowIndex: number, colIndex: number) => {
+    const cell = seats[rowIndex][colIndex];
+    if (cell.type !== "SEAT" || !cell.data) return;
+
+    const seat = cell.data;
+    const myId = userIdRef.current;
+
+    // Booked permanently
+    if (seat.booked || (!seat.available && !seat.selected_by)) {
+      alert("This seat is already booked.");
+      return;
+    }
+
+    // Selected by someone else
+    if (
+      seat.selected_by != null &&
+      myId != null &&
+      Number(seat.selected_by) !== Number(myId)
+    ) {
+      alert(
+        `This seat is currently being selected by ${
+          seat.selected_by_name || "another user"
+        }`
+      );
+      return;
+    }
+
+    // ✅ Selected by ME → release
+    const isSelectedByMe =
+      (seat.is_mine && seat.selected) ||
+      (seat.selected_by != null &&
+        myId != null &&
+        Number(seat.selected_by) === Number(myId));
+
+    if (isSelectedByMe) {
+      await releaseSeatAPI(seat.id.toString());
+      return;
+    }
+
+    // Available → select
+    if (seat.available) {
+      await selectSeatAPI(seat.id.toString());
+    }
+  };
+
+  // ---------- Process seats ----------
   const processSeatsData = (scheduleSeats: any[], hiaceSeats: any[]) => {
     const bookedSeats = new Set<string>();
-    if (scheduleSeats && scheduleSeats.length > 0) {
-      scheduleSeats.forEach((seat) => {
-        if (seat.status === "BOOKED") {
-          bookedSeats.add(seat.seat_number.toString());
-        }
-      });
-    }
+    scheduleSeats?.forEach((seat) => {
+      if (seat.status === "BOOKED") {
+        bookedSeats.add(seat.seat_number.toString());
+      }
+    });
 
     const seatMap: { [key: string]: any } = {};
     hiaceSeats.forEach((seat) => {
@@ -186,76 +615,54 @@ function HiaceDetailsPageComp() {
         available: !bookedSeats.has(seat.seat_number.toString()),
         selected: false,
         booked: bookedSeats.has(seat.seat_number.toString()),
+        is_mine: false,
+        selected_by: undefined,
+        selected_by_name: undefined,
       };
     });
 
-    const usedSeats = new Set<string>();
+    const used = new Set<string>();
 
-    const layoutWithSeats = HIACE_LAYOUT.map((row, rowIndex) => {
-      return row.map((cell, colIndex) => {
-        if (cell === "STEERING") {
-          return { type: "STEERING" as const };
-        }
-        if (cell === null) {
-          return { type: "EMPTY" as const };
-        }
+    return HIACE_LAYOUT.map((row, rowIndex) =>
+      row.map((cell, colIndex) => {
+        if (cell === "STEERING") return { type: "STEERING" as const };
+        if (cell === null) return { type: "EMPTY" as const };
 
-        let serverRow = -1;
-        let serverCol = -1;
+        const mapping: Record<number, Record<number, [number, number]>> = {
+          0: { 0: [1, 1], 1: [1, 2] },
+          1: { 1: [1, 3], 2: [1, 4], 3: [2, 1] },
+          2: { 0: [2, 2], 2: [2, 3], 3: [2, 4] },
+          3: { 0: [3, 1], 2: [3, 2], 3: [3, 3] },
+          4: { 0: [3, 4], 1: [3, 5], 2: [3, 6], 3: [3, 7] },
+        };
 
-        if (rowIndex === 0) {
-          if (colIndex === 0) { serverRow = 1; serverCol = 1; }
-          else if (colIndex === 1) { serverRow = 1; serverCol = 2; }
-        } else if (rowIndex === 1) {
-          if (colIndex === 1) { serverRow = 1; serverCol = 3; }
-          else if (colIndex === 2) { serverRow = 1; serverCol = 4; }
-          else if (colIndex === 3) { serverRow = 2; serverCol = 1; }
-        } else if (rowIndex === 2) {
-          if (colIndex === 0) { serverRow = 2; serverCol = 2; }
-          else if (colIndex === 2) { serverRow = 2; serverCol = 3; }
-          else if (colIndex === 3) { serverRow = 2; serverCol = 4; }
-        } else if (rowIndex === 3) {
-          if (colIndex === 0) { serverRow = 3; serverCol = 1; }
-          else if (colIndex === 2) { serverRow = 3; serverCol = 2; }
-          else if (colIndex === 3) { serverRow = 3; serverCol = 3; }
-        } else if (rowIndex === 4) {
-          if (colIndex === 0) { serverRow = 3; serverCol = 4; }
-          else if (colIndex === 1) { serverRow = 3; serverCol = 5; }
-          else if (colIndex === 2) { serverRow = 3; serverCol = 6; }
-          else if (colIndex === 3) { serverRow = 3; serverCol = 7; }
-        }
+        const [sr, sc] = mapping[rowIndex]?.[colIndex] || [-1, -1];
 
         let seatData = null;
-        if (serverRow > 0 && serverCol > 0) {
-          const key = `${serverRow}-${serverCol}`;
+        if (sr > 0 && sc > 0) {
+          const key = `${sr}-${sc}`;
           if (seatMap[key]) {
             seatData = seatMap[key];
-            usedSeats.add(key);
+            used.add(key);
           }
         }
 
         if (!seatData) {
-          const availableSeats = Object.keys(seatMap).filter(
-            (key) => !usedSeats.has(key)
-          );
-          if (availableSeats.length > 0) {
-            const key = availableSeats[0];
-            seatData = seatMap[key];
-            usedSeats.add(key);
+          const availKey = Object.keys(seatMap).find((k) => !used.has(k));
+          if (availKey) {
+            seatData = seatMap[availKey];
+            used.add(availKey);
           }
         }
 
         if (seatData) {
-          return {
-            type: "SEAT" as const,
-            data: seatData,
-          };
+          return { type: "SEAT" as const, data: seatData };
         }
 
         return {
           type: "SEAT" as const,
           data: {
-            id: Math.floor(Math.random() * 1000),
+            id: Math.floor(Math.random() * 100000),
             seat_number: `R${rowIndex + 1}C${colIndex + 1}`,
             seat_type: "NORMAL",
             row: rowIndex + 1,
@@ -265,18 +672,19 @@ function HiaceDetailsPageComp() {
             available: true,
             selected: false,
             booked: false,
+            is_mine: false,
+            selected_by: undefined,
+            selected_by_name: undefined,
           },
         };
-      });
-    });
-
-    return layoutWithSeats;
+      })
+    );
   };
 
+  // ---------- Fetch Hiace Details ----------
   const fetchHiaceDetails = async () => {
     try {
       setIsLoading(true);
-
       const token = localStorage.getItem("accessToken");
 
       const url = `${API_URL}/api/v1/hiace-schedules/withroutestop/?schedule_id=${scheduleId}&routeid=${routeId}&boardingcity=${boardingCity}&droppingcity=${droppingCity}`;
@@ -292,23 +700,21 @@ function HiaceDetailsPageComp() {
       if (response.data) {
         const data = response.data.data;
 
-        const hiaceSeatsResponse = await axios.get(
+        const hiaceSeatsRes = await axios.get(
           `${API_URL}/api/v1/hiace-seats/?hiace=${data.bus}`,
           {
             headers: {
-              "Content-Type": "application/json",
               ...(token && { Authorization: `Bearer ${token}` }),
             },
             timeout: 15000,
           }
         );
+        const hiaceSeats = hiaceSeatsRes.data.results || [];
 
-        const hiaceSeats = hiaceSeatsResponse.data.results || [];
+        const processed = processSeatsData(data.seats || [], hiaceSeats);
+        setSeats(processed);
 
-        const processedSeats = processSeatsData(data.seats || [], hiaceSeats);
-        setSeats(processedSeats);
-
-        const transformedData = {
+        const transformed = {
           id: data.id.toString(),
           name: data.bus_name || "Hiace",
           type: data.bus_type || (data.ac ? "AC" : "Non-AC"),
@@ -316,7 +722,10 @@ function HiaceDetailsPageComp() {
           to: data.destination_city || "N/A",
           departure: formatTime(data.departure_datetime),
           arrival: formatTime(data.arrival_datetime),
-          duration: calculateDuration(data.departure_datetime, data.arrival_datetime),
+          duration: calculateDuration(
+            data.departure_datetime,
+            data.arrival_datetime
+          ),
           price: parseFloat(data.fare) || 0,
           totalSeats: data.total_seats || 0,
           availableSeats: data.available_seats || 0,
@@ -340,14 +749,13 @@ function HiaceDetailsPageComp() {
             longitude: data.destination_longitude || 83.9856,
             address: `${data.destination_city} Bus Park`,
           },
-          seatLayout: data.seat_layout || { left: 2, right: 2 },
           status: data.status,
           operator: data.operator,
           route: data.route,
           hiace: data.bus,
         };
 
-        setHiaceData(transformedData);
+        setHiaceData(transformed);
 
         if (data.source_latitude && data.source_longitude) {
           setCurrentLocation({
@@ -364,55 +772,30 @@ function HiaceDetailsPageComp() {
       }
     } catch (error: any) {
       console.error("Error fetching hiace details:", error);
-
-      if (error.response) {
-        const status = error.response.status;
-        if (status === 401) {
-          alert("Session Expired. Please login again.");
-          router.push("/login");
-        } else if (status === 404) {
-          alert("Hiace schedule not found.");
-        } else {
-          alert(error.response.data?.message || "Failed to fetch hiace details.");
-        }
-      } else if (error.request) {
-        alert("Unable to connect to the server.");
+      if (error.response?.status === 401) {
+        alert("Session Expired. Please login again.");
+        router.push("/login");
+      } else if (error.response?.status === 404) {
+        alert("Hiace schedule not found.");
       } else {
-        alert("An unexpected error occurred.");
+        alert(
+          error.response?.data?.message || "Failed to fetch hiace details."
+        );
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleSeat = (rowIndex: number, colIndex: number) => {
-    const newSeats = [...seats];
-    const cell = newSeats[rowIndex][colIndex];
-
-    if (cell.type !== "SEAT" || !cell.data) return;
-    if (!cell.data.available || cell.data.booked) return;
-
-    cell.data.selected = !cell.data.selected;
-    setSeats(newSeats);
-
-    const selectedIds: number[] = [];
-    const selectedNumbers: string[] = [];
-    newSeats.forEach((row) => {
-      row.forEach((cell: LayoutCell) => {
-        if (cell.type === "SEAT" && cell.data && cell.data.selected) {
-          selectedIds.push(cell.data.id);
-          selectedNumbers.push(cell.data.seat_number);
-        }
-      });
-    });
-    setSelectedSeats(selectedIds);
-    setSelectedSeatNumbers(selectedNumbers);
-  };
-
+  // ---------- Colors ----------
   const getSeatColor = (cell: LayoutCell) => {
     if (cell.type !== "SEAT" || !cell.data) return "transparent";
     if (cell.data.booked) return "#fee2e2";
-    if (!cell.data.available) return "#fee2e2";
+    if (!cell.data.available) {
+      if (cell.data.is_mine) return "#059669"; // green = mine
+      if (cell.data.selected_by) return "#fbbf24"; // amber = other
+      return "#fee2e2";
+    }
     if (cell.data.selected) return "#059669";
     return "#d1fae5";
   };
@@ -420,7 +803,11 @@ function HiaceDetailsPageComp() {
   const getSeatBorderColor = (cell: LayoutCell) => {
     if (cell.type !== "SEAT" || !cell.data) return "transparent";
     if (cell.data.booked) return "#fca5a5";
-    if (!cell.data.available) return "#fca5a5";
+    if (!cell.data.available) {
+      if (cell.data.is_mine) return "#059669";
+      if (cell.data.selected_by) return "#fbbf24";
+      return "#fca5a5";
+    }
     if (cell.data.selected) return "#059669";
     return "#6ee7b7";
   };
@@ -428,13 +815,18 @@ function HiaceDetailsPageComp() {
   const getSeatTextColor = (cell: LayoutCell) => {
     if (cell.type !== "SEAT" || !cell.data) return "transparent";
     if (cell.data.booked) return "#ef4444";
-    if (!cell.data.available) return "#ef4444";
+    if (!cell.data.available) {
+      if (cell.data.is_mine) return "#ffffff";
+      if (cell.data.selected_by) return "#d97706";
+      return "#ef4444";
+    }
     if (cell.data.selected) return "#ffffff";
     return "#059669";
   };
 
   const totalPrice = selectedSeats.length * (hiaceData?.price || 0);
 
+  // ---------- Booking ----------
   const handleConfirmBooking = async () => {
     if (selectedSeats.length === 0) {
       alert("Please select at least one seat.");
@@ -443,16 +835,13 @@ function HiaceDetailsPageComp() {
 
     try {
       setIsBooking(true);
-
       const token = localStorage.getItem("accessToken");
 
       const bookingData = {
         schedule: parseInt(id as string),
         boardingstop: boardingStopId,
         droppingstop: droppingStopId,
-        booking_seats: selectedSeats.map((seatId) => ({
-          seat: seatId,
-        })),
+        booking_seats: selectedSeats.map((seatId) => ({ seat: seatId })),
         discount: 0,
       };
 
@@ -473,51 +862,41 @@ function HiaceDetailsPageComp() {
         router.push(
           `/hiace-payment?id=${response.data.data.id}&routeId=${routeId}&boardingCity=${boardingCity}&droppingCity=${droppingCity}&scheduleId=${scheduleId}&boardingStopId=${boardingStopId}&droppingStopId=${droppingStopId}`
         );
-
-        setSelectedSeats([]);
-        setSelectedSeatNumbers([]);
         fetchHiaceDetails();
       }
     } catch (error: any) {
       console.error("Error creating booking:", error);
-
-      if (error.response) {
-        const status = error.response.status;
-        const message = error.response.data?.message || "Failed to book seats.";
-
-        if (status === 401) {
-          alert("Session Expired. Please login again.");
-          router.push("/login");
-        } else if (status === 400) {
-          alert(message);
-        } else {
-          alert(message);
-        }
-      } else if (error.request) {
-        alert("Unable to connect to the server.");
+      const message =
+        error.response?.data?.message || "Failed to book seats.";
+      if (error.response?.status === 401) {
+        alert("Session Expired. Please login again.");
+        router.push("/login");
       } else {
-        alert("An unexpected error occurred.");
+        alert(message);
       }
     } finally {
       setIsBooking(false);
     }
   };
 
+  // ---------- Loading ----------
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-emerald-600 to-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
               <Car className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-emerald-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
-          <p className="mt-6 text-emerald-600 font-medium">Loading hiace details...</p>
+          <p className="mt-6 text-emerald-600 font-medium">
+            Loading hiace details...
+          </p>
         </motion.div>
       </div>
     );
@@ -525,14 +904,14 @@ function HiaceDetailsPageComp() {
 
   if (!hiaceData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center">
           <Car className="w-10 h-10 text-slate-300" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">No hiace found</h3>
         <button
           onClick={fetchHiaceDetails}
-          className="mt-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+          className="mt-4 bg-linear-to-r from-emerald-600 to-emerald-500 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
         >
           Retry
         </button>
@@ -541,7 +920,7 @@ function HiaceDetailsPageComp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -573,21 +952,18 @@ function HiaceDetailsPageComp() {
       </motion.div>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32">
-        {/* Hiace Details Card */}
         <HiaceDetailsCard
           hiaceData={hiaceData}
           boardingCity={boardingCity}
           droppingCity={droppingCity}
         />
 
-        {/* Map Section */}
         <HiaceDetailsMap
           hiaceData={hiaceData}
           currentLocation={currentLocation}
           destinationLocation={destinationLocation}
         />
 
-        {/* Driver Info */}
         <HiaceDetailsDriverInfo
           hiaceData={hiaceData}
           showDriverInfo={showDriverInfo}
@@ -647,8 +1023,11 @@ function HiaceDetailsPageComp() {
                     {row.map((cell: LayoutCell, colIndex: number) => {
                       if (cell.type === "STEERING") {
                         return (
-                          <div key={colIndex} className="w-6 h-6 flex items-center justify-center">
-                            <span className="text-xs text-slate-400">🚗</span>
+                          <div
+                            key={colIndex}
+                            className="w-6 h-6 flex items-center justify-center"
+                          >
+                            <span className="text-xs text-slate-400"><LifeBuoy /></span>
                           </div>
                         );
                       }
@@ -660,13 +1039,7 @@ function HiaceDetailsPageComp() {
                           <div
                             key={colIndex}
                             className="w-6 h-6 rounded"
-                            style={{
-                              backgroundColor: cell.data.booked
-                                ? "#fee2e2"
-                                : cell.data.selected
-                                  ? "#059669"
-                                  : "#d1fae5",
-                            }}
+                            style={{ backgroundColor: getSeatColor(cell) }}
                           />
                         );
                       }
@@ -716,7 +1089,7 @@ function HiaceDetailsPageComp() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowSeatModal(true)}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+            className="bg-linear-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
           >
             Select Seats
             <ArrowRight className="w-5 h-5" />
@@ -744,7 +1117,9 @@ function HiaceDetailsPageComp() {
             >
               <div className="p-5 border-b border-slate-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">Select Seats</h3>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Select Seats
+                  </h3>
                   <button
                     onClick={() => setShowSeatModal(false)}
                     className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
@@ -752,6 +1127,15 @@ function HiaceDetailsPageComp() {
                     <X className="w-5 h-5 text-gray-900" />
                   </button>
                 </div>
+
+                {!isWebSocketConnected && (
+                  <div className="flex items-center gap-2 mt-3 bg-amber-50 px-3 py-2 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm text-amber-600 font-medium">
+                      Connecting to real-time updates...
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="p-5 overflow-y-auto max-h-[60vh]">
@@ -763,7 +1147,13 @@ function HiaceDetailsPageComp() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded bg-emerald-600" />
-                    <span className="text-xs text-slate-600">Selected</span>
+                    <span className="text-xs text-slate-600">Your Seat</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded bg-amber-400" />
+                    <span className="text-xs text-slate-600">
+                      Being Selected
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <div className="w-5 h-5 rounded bg-red-100 border border-red-200" />
@@ -789,8 +1179,10 @@ function HiaceDetailsPageComp() {
                               key={colIndex}
                               className="w-12 h-12 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center"
                             >
-                              <span className="text-xl">🚗</span>
-                              <span className="text-[8px] text-slate-400 font-medium">Driver</span>
+                              <span className="text-xl"><LifeBuoy/></span>
+                              <span className="text-[8px] text-slate-400 font-medium">
+                                Driver
+                              </span>
                             </div>
                           );
                         }
@@ -798,20 +1190,38 @@ function HiaceDetailsPageComp() {
                           return <div key={colIndex} className="w-12 h-12" />;
                         }
                         if (cell.type === "SEAT" && cell.data) {
-                          const isBooked = cell.data.booked || !cell.data.available;
-                          const isSelected = cell.data.selected;
+                          const isBooked =
+                            cell.data.booked ||
+                            (!cell.data.available &&
+                              !cell.data.selected_by &&
+                              !cell.data.is_mine);
+                          const isBeingSelectedByOther =
+                            cell.data.selected_by && !cell.data.is_mine;
+                          const isMySeat =
+                            cell.data.is_mine && cell.data.selected;
 
                           return (
                             <motion.button
                               key={colIndex}
-                              whileHover={!isBooked ? { scale: 1.05 } : {}}
-                              whileTap={!isBooked ? { scale: 0.95 } : {}}
+                              whileHover={
+                                !isBooked && !isBeingSelectedByOther
+                                  ? { scale: 1.05 }
+                                  : {}
+                              }
+                              whileTap={
+                                !isBooked && !isBeingSelectedByOther
+                                  ? { scale: 0.95 }
+                                  : {}
+                              }
                               onClick={() => toggleSeat(rowIndex, colIndex)}
-                              disabled={isBooked}
+                              disabled={isBooked || isBeingSelectedByOther}
                               className={cn(
                                 "relative w-12 h-12 rounded-xl border-2 transition-all flex flex-col items-center justify-center",
                                 isBooked && "opacity-60 cursor-not-allowed",
-                                isSelected && "scale-105 border-emerald-600 shadow-lg shadow-emerald-500/25"
+                                isBeingSelectedByOther &&
+                                  "opacity-80 cursor-not-allowed",
+                                isMySeat &&
+                                  "scale-105 border-emerald-600 shadow-lg shadow-emerald-500/25"
                               )}
                               style={{
                                 backgroundColor: getSeatColor(cell),
@@ -828,8 +1238,11 @@ function HiaceDetailsPageComp() {
                               >
                                 {cell.data.seat_number}
                               </span>
-                              {isSelected && (
+                              {isMySeat && (
                                 <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
+                              )}
+                              {isBeingSelectedByOther && (
+                                <Clock className="w-3 h-3 text-amber-600 absolute -top-1 -right-1" />
                               )}
                               {cell.data.is_window && (
                                 <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
@@ -844,8 +1257,22 @@ function HiaceDetailsPageComp() {
                 </div>
 
                 <div className="text-center mt-4">
-                  <span className="text-xs text-slate-400">↑ Front of Vehicle</span>
+                  <span className="text-xs text-slate-400">
+                    ↑ Front of Vehicle
+                  </span>
                 </div>
+
+                {selectedSeatIds.size > 0 && (
+                  <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs text-amber-700">
+                        {selectedSeatIds.size} seat(s) currently being selected
+                        by other users
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer */}
@@ -870,7 +1297,7 @@ function HiaceDetailsPageComp() {
                     onClick={handleConfirmBooking}
                     disabled={selectedSeats.length === 0 || isBooking}
                     className={cn(
-                      "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-8 py-3.5 rounded-xl font-semibold shadow-lg shadow-emerald-500/25",
+                      "bg-linear-to-r from-emerald-600 to-emerald-500 text-white px-8 py-3.5 rounded-xl font-semibold shadow-lg shadow-emerald-500/25",
                       (selectedSeats.length === 0 || isBooking) &&
                         "opacity-50 cursor-not-allowed"
                     )}
