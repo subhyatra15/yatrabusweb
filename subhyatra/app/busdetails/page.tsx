@@ -179,9 +179,11 @@ function BusDetailsPageComp() {
   const { selectedSeats, selectedSeatNumbers } = useMemo(() => {
     const ids: number[] = [];
     const nums: string[] = [];
+    if (!Array.isArray(seats)) return { selectedSeats: ids, selectedSeatNumbers: nums };
     seats.forEach((row) => {
+      if (!Array.isArray(row)) return;
       row.forEach((s: any) => {
-        if (s.selected && s.is_mine) {
+        if (s && s.selected && s.is_mine) {
           ids.push(s.id);
           nums.push(s.seat_number);
         }
@@ -443,7 +445,7 @@ function BusDetailsPageComp() {
         if (data.seats) {
           const selectedIds = new Set<string>();
           data.seats.forEach((seat: any) => {
-            if (seat.user_id) selectedIds.add(seat.seat_id);
+            if (seat && seat.user_id) selectedIds.add(seat.seat_id);
           });
           setSelectedSeatIds(selectedIds);
           updateSeatsFromWebSocket(data.seats);
@@ -478,7 +480,7 @@ function BusDetailsPageComp() {
   };
 
   // ---------------------------------------------------------------
-  // ✅ FIXED: markSeatAsSelected — numeric compare, keep selected_by
+  // markSeatAsSelected — numeric compare, keep selected_by
   // ---------------------------------------------------------------
   const markSeatAsSelected = (
     seatId: string,
@@ -495,29 +497,35 @@ function BusDetailsPageComp() {
       `[markSeatAsSelected] seat=${seatId} by=${selectedByUserId} me=${uid} is_mine=${isMine}`,
     );
 
-    setSeats((prevSeats) =>
-      prevSeats.map((row) =>
-        row.map((seat: any) => {
+    setSeats((prevSeats) => {
+      if (!Array.isArray(prevSeats)) return prevSeats;
+      return prevSeats.map((row) => {
+        if (!Array.isArray(row)) return row;
+        return row.map((seat: any) => {
+          if (!seat) return seat;
           if (seat.id.toString() === seatId) {
             return {
               ...seat,
               available: false,
-              selected_by: selectedByUserId, // ✅ always store, even for me
+              selected_by: selectedByUserId,
               selected_by_name: username,
               is_mine: isMine,
               selected: isMine,
             };
           }
           return seat;
-        }),
-      ),
-    );
+        });
+      });
+    });
   };
 
   const markSeatAsAvailable = (seatId: string) => {
-    setSeats((prevSeats) =>
-      prevSeats.map((row) =>
-        row.map((seat: any) => {
+    setSeats((prevSeats) => {
+      if (!Array.isArray(prevSeats)) return prevSeats;
+      return prevSeats.map((row) => {
+        if (!Array.isArray(row)) return row;
+        return row.map((seat: any) => {
+          if (!seat) return seat;
           if (seat.id.toString() === seatId) {
             return {
               ...seat,
@@ -529,21 +537,25 @@ function BusDetailsPageComp() {
             };
           }
           return seat;
-        }),
-      ),
-    );
+        });
+      });
+    });
   };
 
   // ---------------------------------------------------------------
-  // ✅ FIXED: updateSeatsFromWebSocket — numeric compare
+  // updateSeatsFromWebSocket — numeric compare
   // ---------------------------------------------------------------
   const updateSeatsFromWebSocket = (wsSeats: any[]) => {
     const uid = userIdRef.current;
-    setSeats((prevSeats) =>
-      prevSeats.map((row) =>
-        row.map((seat: any) => {
-          const wsSeat = wsSeats.find(
-            (s: any) => s.seat_id === seat.id.toString(),
+    const safeWsSeats = Array.isArray(wsSeats) ? wsSeats : [];
+    setSeats((prevSeats) => {
+      if (!Array.isArray(prevSeats)) return prevSeats;
+      return prevSeats.map((row) => {
+        if (!Array.isArray(row)) return row;
+        return row.map((seat: any) => {
+          if (!seat) return seat;
+          const wsSeat = safeWsSeats.find(
+            (s: any) => s && s.seat_id === seat.id.toString(),
           );
           if (wsSeat) {
             const isMine =
@@ -557,7 +569,6 @@ function BusDetailsPageComp() {
               selected: isMine,
             };
           }
-          // Not in WS list → free (unless the seat is permanently booked)
           return {
             ...seat,
             available: true,
@@ -566,13 +577,13 @@ function BusDetailsPageComp() {
             is_mine: false,
             selected: false,
           };
-        }),
-      ),
-    );
+        });
+      });
+    });
   };
 
   // ---------------------------------------------------------------
-  // ✅ FIXED: selectSeat — checks is_mine on 409
+  // selectSeat — checks is_mine on 409
   // ---------------------------------------------------------------
   const selectSeat = async (seatId: string) => {
     try {
@@ -592,9 +603,12 @@ function BusDetailsPageComp() {
       if (response.data.success) {
         const uid = userIdRef.current;
         // Optimistically mark as mine
-        setSeats((prevSeats) =>
-          prevSeats.map((row) =>
-            row.map((seat: any) => {
+        setSeats((prevSeats) => {
+          if (!Array.isArray(prevSeats)) return prevSeats;
+          return prevSeats.map((row) => {
+            if (!Array.isArray(row)) return row;
+            return row.map((seat: any) => {
+              if (!seat) return seat;
               if (seat.id.toString() === seatId) {
                 return {
                   ...seat,
@@ -606,9 +620,9 @@ function BusDetailsPageComp() {
                 };
               }
               return seat;
-            }),
-          ),
-        );
+            });
+          });
+        });
         setSelectedSeatIds((prev) => new Set(prev).add(seatId));
         return true;
       }
@@ -629,9 +643,12 @@ function BusDetailsPageComp() {
 
         if (isMine) {
           console.log("Seat is already yours — syncing state.");
-          setSeats((prevSeats) =>
-            prevSeats.map((row) =>
-              row.map((seat: any) => {
+          setSeats((prevSeats) => {
+            if (!Array.isArray(prevSeats)) return prevSeats;
+            return prevSeats.map((row) => {
+              if (!Array.isArray(row)) return row;
+              return row.map((seat: any) => {
+                if (!seat) return seat;
                 if (seat.id.toString() === seatId) {
                   return {
                     ...seat,
@@ -643,9 +660,9 @@ function BusDetailsPageComp() {
                   };
                 }
                 return seat;
-              }),
-            ),
-          );
+              });
+            });
+          });
           setSelectedSeatIds((prev) => new Set(prev).add(seatId));
           return true;
         }
@@ -701,7 +718,7 @@ function BusDetailsPageComp() {
           timeout: 15000,
         },
       );
-      if (response.data && response.data.results) {
+      if (response.data && Array.isArray(response.data.results)) {
         return response.data.results;
       }
       return [];
@@ -711,18 +728,26 @@ function BusDetailsPageComp() {
     }
   };
 
+  // ---------------------------------------------------------------
+  // ✅ processSeatsData — filters out bad seats, never emits undefined
+  // ---------------------------------------------------------------
   const processSeatsData = (scheduleSeats: Seat[], busSeats: any[]) => {
     const bookedSeats = new Set<string>();
-    scheduleSeats.forEach((seat) => {
-      if (seat.status === "BOOKED") {
+    (scheduleSeats || []).forEach((seat) => {
+      if (seat && seat.status === "BOOKED" && seat.seat_number != null) {
         bookedSeats.add(seat.seat_number.toString());
       }
     });
 
-    const sortedSeats = [...busSeats].sort((a, b) => {
-      if (a.row !== b.row) return a.row - b.row;
-      return a.col - b.col;
-    });
+    // ✅ Filter out any malformed seat from the server
+    const sortedSeats = [...(busSeats || [])]
+      .filter(
+        (s) => s && s.id != null && s.row != null && s.col != null,
+      )
+      .sort((a, b) => {
+        if (a.row !== b.row) return a.row - b.row;
+        return a.col - b.col;
+      });
 
     const seatsByRow: { [key: number]: any[] } = {};
     sortedSeats.forEach((seat) => {
@@ -741,14 +766,14 @@ function BusDetailsPageComp() {
             ...seat,
             id: seat.id,
             seat_number: seat.seat_number,
-            available: !bookedSeats.has(seat.seat_number.toString()),
+            available: !bookedSeats.has(seat.seat_number?.toString()),
             selected: false,
             seat_type: seat.seat_type || "NORMAL",
             is_window: seat.is_window || false,
             is_mine: false,
             selected_by: undefined,
             selected_by_name: undefined,
-            extra_price: seat.extra_price || "0.00",
+            extra_price: seat.extra_price ?? "0.00", // ✅ never undefined
           }));
         rows.push(rowSeats);
       });
@@ -776,7 +801,13 @@ function BusDetailsPageComp() {
 
         const busSeats = await fetchBusSeats(data.bus);
         const processedSeats = processSeatsData(data.seats || [], busSeats);
-        setSeats(processedSeats);
+
+        // ✅ Sanity: ensure every row is a real array
+        const safeSeats = Array.isArray(processedSeats)
+          ? processedSeats.filter((r) => Array.isArray(r))
+          : [];
+
+        setSeats(safeSeats);
 
         let sourceCoords = getCityCoordinates(data.source_city);
         let destCoords = getCityCoordinates(data.destination_city);
@@ -888,9 +919,9 @@ function BusDetailsPageComp() {
     }
   };
 
-  // ✅ FIXED toggleSeat
+  // toggleSeat
   const toggleSeat = async (rowIndex: number, colIndex: number) => {
-    const seat = seats[rowIndex][colIndex];
+    const seat = seats?.[rowIndex]?.[colIndex];
     if (!seat) return;
     const myId = userIdRef.current;
 
@@ -934,8 +965,9 @@ function BusDetailsPageComp() {
 
   const getMaxSeatsInRow = () => {
     let max = 0;
+    if (!Array.isArray(seats)) return max;
     seats.forEach((row) => {
-      if (row.length > max) max = row.length;
+      if (Array.isArray(row) && row.length > max) max = row.length;
     });
     return max;
   };
@@ -958,18 +990,17 @@ function BusDetailsPageComp() {
     }
   };
 
-  // ---------------------------------------------------------------
-  // ✅ FIXED: Seat color helpers — explicitly check selected_by
-  // ---------------------------------------------------------------
+  // Seat color helpers
   const getSeatColor = (seat: any) => {
+    if (!seat) return "#dbeafe";
     // Booked permanently
     if (!seat.available && !seat.selected_by && !seat.is_mine) {
-      return "#fee2e2"; // red-ish for booked
+      return "#fee2e2";
     }
     // Selected by someone
     if (seat.selected_by != null) {
-      if (seat.is_mine) return "#4f46e5"; // indigo = mine
-      return "#fbbf24"; // ✅ amber = other user selecting
+      if (seat.is_mine) return "#4f46e5";
+      return "#fbbf24";
     }
     // Available
     if (seat.selected) return "#4f46e5";
@@ -979,12 +1010,13 @@ function BusDetailsPageComp() {
   };
 
   const getSeatBorderColor = (seat: any) => {
+    if (!seat) return "#93c5fd";
     if (!seat.available && !seat.selected_by && !seat.is_mine) {
       return "#fca5a5";
     }
     if (seat.selected_by != null) {
       if (seat.is_mine) return "#4f46e5";
-      return "#fbbf24"; // amber border for other user
+      return "#fbbf24";
     }
     if (seat.selected) return "#4f46e5";
     if (seat.seat_type === "SLEEPER") return "#60a5fa";
@@ -993,12 +1025,13 @@ function BusDetailsPageComp() {
   };
 
   const getSeatTextColor = (seat: any) => {
+    if (!seat) return "#4f46e5";
     if (!seat.available && !seat.selected_by && !seat.is_mine) {
       return "#ef4444";
     }
     if (seat.selected_by != null) {
       if (seat.is_mine) return "#ffffff";
-      return "#d97706"; // amber text for other user
+      return "#d97706";
     }
     if (seat.selected) return "#ffffff";
     if (seat.seat_type === "SLEEPER") return "#2563eb";
@@ -1007,7 +1040,8 @@ function BusDetailsPageComp() {
   };
 
   const getSeatIcon = (seat: any) => {
-    if (seat.selected_by != null && !seat.is_mine) return Clock; // ⏱ for other user
+    if (!seat) return Sofa;
+    if (seat.selected_by != null && !seat.is_mine) return Clock;
     if (seat.is_mine) return Check;
     if (seat.seat_type === "SLEEPER") return Bed;
     if (seat.seat_type === "VIP") return StarIcon;
@@ -1015,22 +1049,27 @@ function BusDetailsPageComp() {
   };
 
   const getSeatPrice = (seat: any) => {
+    if (!seat) return busData?.price || 0;
     const basePrice = busData?.price || 0;
-    const extraPrice = parseFloat(seat.extra_price) || 0;
+    const extraPrice = parseFloat(seat.extra_price ?? "0") || 0;
     return basePrice + extraPrice;
   };
 
   // Total
   const totalPrice = selectedSeats.reduce((total, seatId) => {
     let seatPrice = busData?.price || 0;
-    seats.forEach((row) => {
-      row.forEach((s: any) => {
-        if (s.id === seatId) {
-          const extra = parseFloat(s.extra_price) || 0;
-          seatPrice += extra;
-        }
+    if (Array.isArray(seats)) {
+      seats.forEach((row) => {
+        if (!Array.isArray(row)) return;
+        row.forEach((s: any) => {
+          if (!s) return;
+          if (s.id === seatId) {
+            const extra = parseFloat(s.extra_price ?? "0") || 0;
+            seatPrice += extra;
+          }
+        });
       });
-    });
+    }
     return total + seatPrice;
   }, 0);
 
@@ -1266,19 +1305,23 @@ function BusDetailsPageComp() {
           >
             <div className="flex justify-between items-center">
               <div className="flex gap-1">
-                {seats.slice(0, 2).map((row, rowIndex) => (
-                  <div key={rowIndex} className="flex gap-1">
-                    {row.slice(0, 4).map((seat: any, colIndex: number) => (
-                      <div
-                        key={colIndex}
-                        className="w-6 h-6 rounded"
-                        style={{
-                          backgroundColor: getSeatColor(seat),
-                        }}
-                      />
-                    ))}
-                  </div>
-                ))}
+                {Array.isArray(seats) &&
+                  seats.slice(0, 2).map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex gap-1">
+                      {Array.isArray(row) &&
+                        row.slice(0, 4).map((seat: any, colIndex: number) => (
+                          <div
+                            key={colIndex}
+                            className="w-6 h-6 rounded"
+                            style={{
+                              backgroundColor: seat
+                                ? getSeatColor(seat)
+                                : "#dbeafe",
+                            }}
+                          />
+                        ))}
+                    </div>
+                  ))}
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-semibold text-indigo-600">
@@ -1401,8 +1444,7 @@ function BusDetailsPageComp() {
                     <div className="flex items-end justify-end mb-4 px-1">
                       {/* ✅ Right side: steering wheel + Driver */}
                       <div className="flex flex-col items-center px-18">
-                        <div className="w-10 h-10 rounded-full bg-indigo-50 border-2 border-indigo-300 flex items-center justify-center shadow-sm ">
-                          {/* Steering wheel icon (SVG inline) */}
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 border-2 border-indigo-300 flex items-center justify-center shadow-sm">
                           <svg
                             viewBox="0 0 24 24"
                             className="w-6 h-6 text-indigo-600"
@@ -1427,142 +1469,165 @@ function BusDetailsPageComp() {
 
                     {/* Seats */}
                     <div className="flex flex-col items-center gap-2.5">
-                      {seats.map((row, rowIndex) => {
-                        const totalSeats = row.length;
-                        const gridSeats = [];
-                        const cols = 6;
+                      {!Array.isArray(seats) || seats.length === 0 ? (
+                        <div className="text-center py-8 text-sm text-slate-400">
+                          Loading seats...
+                        </div>
+                      ) : (
+                        seats.map((row, rowIndex) => {
+                          if (!Array.isArray(row)) return null;
+                          const totalSeats = row.length;
+                          const gridSeats = [];
+                          const cols = 6;
 
-                        if (totalSeats === 4) {
-                          for (let i = 0; i < cols; i++) {
-                            if (i < 2) gridSeats.push(row[i]);
-                            else if (i < 4) gridSeats.push(null);
-                            else gridSeats.push(row[i - 2]);
+                          if (totalSeats === 4) {
+                            for (let i = 0; i < cols; i++) {
+                              if (i < 2) gridSeats.push(row[i] ?? null);
+                              else if (i < 4) gridSeats.push(null);
+                              else gridSeats.push(row[i - 2] ?? null);
+                            }
+                          } else if (totalSeats === 5) {
+                            for (let i = 0; i < cols; i++) {
+                              if (i < 3) gridSeats.push(row[i] ?? null);
+                              else if (i === 3) gridSeats.push(null);
+                              else gridSeats.push(row[i - 1] ?? null);
+                            }
+                          } else {
+                            for (let i = 0; i < cols; i++) {
+                              gridSeats.push(row[i] ?? null);
+                            }
                           }
-                        } else if (totalSeats === 5) {
-                          for (let i = 0; i < cols; i++) {
-                            if (i < 3) gridSeats.push(row[i]);
-                            else if (i === 3) gridSeats.push(null);
-                            else gridSeats.push(row[i - 1]);
-                          }
-                        } else {
-                          for (let i = 0; i < cols; i++) {
-                            gridSeats.push(row[i]);
-                          }
-                        }
 
-                        return (
-                          <div
-                            key={rowIndex}
-                            className="flex items-center gap-0 w-full justify-center"
-                          >
-                            {gridSeats.map((seat, colIndex) => {
-                              if (seat === null) {
+                          return (
+                            <div
+                              key={rowIndex}
+                              className="flex items-center gap-0 w-full justify-center"
+                            >
+                              {gridSeats.map((seat, colIndex) => {
+                                // ✅ Skip null AND undefined
+                                if (seat === null || seat === undefined) {
+                                  return (
+                                    <div
+                                      key={`empty-${colIndex}`}
+                                      className="w-11 h-11 shrink-0 mx-0.5"
+                                    />
+                                  );
+                                }
+
+                                // ✅ Defensive: skip if seat has no id
+                                if (!seat.id) {
+                                  return (
+                                    <div
+                                      key={`empty-${colIndex}`}
+                                      className="w-11 h-11 shrink-0 mx-0.5"
+                                    />
+                                  );
+                                }
+
+                                const hasExtra =
+                                  parseFloat(seat.extra_price ?? "0") > 0;
+                                const isAisleSeat =
+                                  colIndex === 2 || colIndex === 3;
+
+                                const isLockedByOther =
+                                  seat.selected_by != null && !seat.is_mine;
+                                const isMineSeat =
+                                  seat.selected_by != null && seat.is_mine;
+                                const isBooked =
+                                  !seat.available &&
+                                  !seat.selected_by &&
+                                  !seat.is_mine;
+
+                                const SeatIcon = getSeatIcon(seat);
+
                                 return (
-                                  <div
-                                    key={`empty-${colIndex}`}
-                                    className="w-11 h-11 shrink-0 mx-0.5"
-                                  />
-                                );
-                              }
-
-                              const hasExtra = parseFloat(seat.extra_price) > 0;
-                              const isAisleSeat =
-                                colIndex === 2 || colIndex === 3;
-
-                              // ✅ Explicit flags
-                              const isLockedByOther =
-                                seat.selected_by != null && !seat.is_mine;
-                              const isMineSeat =
-                                seat.selected_by != null && seat.is_mine;
-                              const isBooked =
-                                !seat.available &&
-                                !seat.selected_by &&
-                                !seat.is_mine;
-
-                              const SeatIcon = getSeatIcon(seat);
-
-                              return (
-                                <button
-                                  key={`seat-${colIndex}`}
-                                  onClick={() => toggleSeat(rowIndex, colIndex)}
-                                  disabled={isBooked || isLockedByOther}
-                                  title={
-                                    isLockedByOther
-                                      ? `Selected by ${
-                                          seat.selected_by_name ||
-                                          "another user"
-                                        }`
-                                      : undefined
-                                  }
-                                  className={cn(
-                                    "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center flex-shrink-0 mx-0.5",
-                                    isBooked && "opacity-60 cursor-not-allowed",
-                                    isLockedByOther &&
-                                      "opacity-90 cursor-not-allowed ring-2 ring-amber-300",
-                                    isMineSeat &&
-                                      "scale-105 border-indigo-600 shadow-lg shadow-indigo-500/30",
-                                    seat.seat_type === "SLEEPER" &&
-                                      "w-12 h-12 rounded-2xl",
-                                    seat.seat_type === "VIP" &&
-                                      "border-amber-400",
-                                    hasExtra &&
-                                      "border-dashed border-2 border-green-400",
-                                    seat.available &&
-                                      !seat.selected &&
-                                      !isLockedByOther &&
-                                      "hover:scale-105 hover:shadow-md",
-                                  )}
-                                  style={{
-                                    backgroundColor: getSeatColor(seat),
-                                    borderColor: hasExtra
-                                      ? "#4ade80"
-                                      : getSeatBorderColor(seat),
-                                  }}
-                                >
-                                  <SeatIcon
-                                    className="w-5 h-5"
-                                    style={{ color: getSeatTextColor(seat) }}
-                                  />
-                                  <span
-                                    className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
-                                    style={{ color: getSeatTextColor(seat) }}
+                                  <button
+                                    key={`seat-${colIndex}`}
+                                    onClick={() =>
+                                      toggleSeat(rowIndex, colIndex)
+                                    }
+                                    disabled={isBooked || isLockedByOther}
+                                    title={
+                                      isLockedByOther
+                                        ? `Selected by ${
+                                            seat.selected_by_name ||
+                                            "another user"
+                                          }`
+                                        : undefined
+                                    }
+                                    className={cn(
+                                      "relative w-11 h-11 rounded-xl border-2 transition-all flex flex-col items-center justify-center flex-shrink-0 mx-0.5",
+                                      isBooked &&
+                                        "opacity-60 cursor-not-allowed",
+                                      isLockedByOther &&
+                                        "opacity-90 cursor-not-allowed ring-2 ring-amber-300",
+                                      isMineSeat &&
+                                        "scale-105 border-indigo-600 shadow-lg shadow-indigo-500/30",
+                                      seat.seat_type === "SLEEPER" &&
+                                        "w-12 h-12 rounded-2xl",
+                                      seat.seat_type === "VIP" &&
+                                        "border-amber-400",
+                                      hasExtra &&
+                                        "border-dashed border-2 border-green-400",
+                                      seat.available &&
+                                        !seat.selected &&
+                                        !isLockedByOther &&
+                                        "hover:scale-105 hover:shadow-md",
+                                    )}
+                                    style={{
+                                      backgroundColor: getSeatColor(seat),
+                                      borderColor: hasExtra
+                                        ? "#4ade80"
+                                        : getSeatBorderColor(seat),
+                                    }}
                                   >
-                                    {seat.seat_number}
-                                  </span>
-                                  {isMineSeat && (
-                                    <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
-                                  )}
-                                  {isLockedByOther && (
-                                    <Clock className="w-3 h-3 text-amber-700 absolute -top-1 -right-1" />
-                                  )}
-                                  {seat.is_window && (
-                                    <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
-                                  )}
-                                  {isAisleSeat && (
-                                    <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-[8px] text-slate-400 font-medium whitespace-nowrap">
-                                      Aisle
-                                    </div>
-                                  )}
-                                  {hasExtra &&
-                                    !seat.is_mine &&
-                                    !seat.selected_by &&
-                                    !seat.selected && (
-                                      <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
-                                        +Rs.{seat.extra_price}
+                                    <SeatIcon
+                                      className="w-5 h-5"
+                                      style={{ color: getSeatTextColor(seat) }}
+                                    />
+                                    <span
+                                      className="text-[8px] font-semibold absolute bottom-0.5 right-1 opacity-70"
+                                      style={{
+                                        color: getSeatTextColor(seat),
+                                      }}
+                                    >
+                                      {seat.seat_number}
+                                    </span>
+                                    {isMineSeat && (
+                                      <Check className="w-3 h-3 text-white absolute -top-1 -right-1" />
+                                    )}
+                                    {isLockedByOther && (
+                                      <Clock className="w-3 h-3 text-amber-700 absolute -top-1 -right-1" />
+                                    )}
+                                    {seat.is_window && (
+                                      <Grid2x2 className="w-3 h-3 text-blue-400 absolute -top-1 -left-1" />
+                                    )}
+                                    {isAisleSeat && (
+                                      <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-[8px] text-slate-400 font-medium whitespace-nowrap">
+                                        Aisle
                                       </div>
                                     )}
-                                  {hasExtra &&
-                                    (seat.is_mine || seat.selected) && (
-                                      <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-indigo-100 text-indigo-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
-                                        +Rs.{seat.extra_price}
-                                      </div>
-                                    )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
+                                    {hasExtra &&
+                                      !seat.is_mine &&
+                                      !seat.selected_by &&
+                                      !seat.selected && (
+                                        <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-green-100 text-green-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                          +Rs.{seat.extra_price}
+                                        </div>
+                                      )}
+                                    {hasExtra &&
+                                      (seat.is_mine || seat.selected) && (
+                                        <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-indigo-100 text-indigo-700 text-[8px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+                                          +Rs.{seat.extra_price}
+                                        </div>
+                                      )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1619,7 +1684,6 @@ export default function BusDetailsPage() {
   );
 }
 
-// Wrapper
 function BusDetailsPageComponent() {
   return <BusDetailsPageComp />;
 }
