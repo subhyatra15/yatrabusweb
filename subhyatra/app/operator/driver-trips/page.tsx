@@ -41,6 +41,7 @@ interface Passenger {
 
 interface Trip {
   id: number;
+  vehicleType: "bus" | "hiace";   // ← added
   route: string;
   from: string;
   to: string;
@@ -133,9 +134,13 @@ const tabs = [
 ];
 
 // Trip Card Component
-const TripCard = ({ trip, onPress, onViewPassengers }: { 
-  trip: Trip; 
-  onPress: () => void; 
+const TripCard = ({
+  trip,
+  onPress,
+  onViewPassengers,
+}: {
+  trip: Trip;
+  onPress: () => void;
   onViewPassengers: () => void;
 }) => {
   const StatusIcon = getStatusIcon(trip.status);
@@ -157,13 +162,17 @@ const TripCard = ({ trip, onPress, onViewPassengers }: {
             </div>
             <div>
               <p className="font-semibold text-gray-900">{trip.route}</p>
-              <p className="text-sm text-slate-400">{trip.vehicle} • {trip.vehicleNumber}</p>
+              <p className="text-sm text-slate-400">
+                {trip.vehicle} • {trip.vehicleNumber}
+              </p>
             </div>
           </div>
-          <div className={cn(
-            "flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold",
-            getStatusBgColor(trip.status)
-          )}>
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold",
+              getStatusBgColor(trip.status)
+            )}
+          >
             <StatusIcon className="w-3.5 h-3.5" style={{ color: statusColor }} />
             {getStatusLabel(trip.status)}
           </div>
@@ -175,7 +184,9 @@ const TripCard = ({ trip, onPress, onViewPassengers }: {
             <div className="w-2 h-2 rounded-full bg-indigo-600" />
             <div>
               <p className="font-medium text-gray-900">{trip.from}</p>
-              <p className="text-xs text-slate-400">{formatTime(trip.departure)}</p>
+              <p className="text-xs text-slate-400">
+                {formatTime(trip.departure)}
+              </p>
             </div>
           </div>
           <div className="flex-1 flex items-center gap-2 px-2">
@@ -187,7 +198,9 @@ const TripCard = ({ trip, onPress, onViewPassengers }: {
             <div className="w-2 h-2 rounded-full bg-purple-600" />
             <div>
               <p className="font-medium text-gray-900">{trip.to}</p>
-              <p className="text-xs text-slate-400">{formatTime(trip.arrival)}</p>
+              <p className="text-xs text-slate-400">
+                {formatTime(trip.arrival)}
+              </p>
             </div>
           </div>
         </div>
@@ -201,7 +214,9 @@ const TripCard = ({ trip, onPress, onViewPassengers }: {
             </div>
             <div className="flex items-center gap-1.5 text-sm text-slate-500">
               <Users className="w-4 h-4" />
-              <span>{trip.bookedSeats}/{trip.totalSeats} seats</span>
+              <span>
+                {trip.bookedSeats}/{trip.totalSeats} seats
+              </span>
             </div>
           </div>
           <button
@@ -221,13 +236,13 @@ const TripCard = ({ trip, onPress, onViewPassengers }: {
 };
 
 // Passengers Modal Component
-const PassengersModal = ({ 
-  isOpen, 
-  onClose, 
-  trip 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+const PassengersModal = ({
+  isOpen,
+  onClose,
+  trip,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   trip: Trip | null;
 }) => {
   if (!trip) return null;
@@ -253,8 +268,12 @@ const PassengersModal = ({
             <div className="p-5 border-b border-slate-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Passengers</h3>
-                  <p className="text-sm text-slate-400">{trip.route} • {formatDate(trip.date)}</p>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Passengers
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    {trip.route} • {formatDate(trip.date)}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
@@ -277,15 +296,23 @@ const PassengersModal = ({
                       className="flex items-center gap-3 bg-slate-50/80 rounded-xl p-3"
                     >
                       <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-indigo-600">{index + 1}</span>
+                        <span className="text-sm font-bold text-indigo-600">
+                          {index + 1}
+                        </span>
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-gray-900">{passenger.name}</p>
-                        <p className="text-sm text-slate-400">Seat {passenger.seat}</p>
+                        <p className="font-semibold text-gray-900">
+                          {passenger.name}
+                        </p>
+                        <p className="text-sm text-slate-400">
+                          Seat {passenger.seat}
+                        </p>
                       </div>
                       <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-xs font-semibold text-emerald-600">Checked In</span>
+                        <span className="text-xs font-semibold text-emerald-600">
+                          Checked In
+                        </span>
                       </div>
                     </motion.div>
                   ))}
@@ -295,7 +322,9 @@ const PassengersModal = ({
                   <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
                     <Users className="w-8 h-8 text-slate-300" />
                   </div>
-                  <p className="text-sm font-medium text-slate-400 mt-4">No passengers yet</p>
+                  <p className="text-sm font-medium text-slate-400 mt-4">
+                    No passengers yet
+                  </p>
                 </div>
               )}
             </div>
@@ -401,7 +430,9 @@ export default function DriverTripsPage() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-extrabold text-gray-900">My Trips</h1>
+              <h1 className="text-2xl font-extrabold text-gray-900">
+                My Trips
+              </h1>
               <p className="text-sm text-slate-400 font-medium">
                 {filteredTrips.length} {activeTab} trips
               </p>
@@ -413,10 +444,12 @@ export default function DriverTripsPage() {
                 onClick={onRefresh}
                 className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
               >
-                <RefreshCw className={cn(
-                  "w-5 h-5 text-slate-600",
-                  refreshing && "animate-spin"
-                )} />
+                <RefreshCw
+                  className={cn(
+                    "w-5 h-5 text-slate-600",
+                    refreshing && "animate-spin"
+                  )}
+                />
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -458,12 +491,14 @@ export default function DriverTripsPage() {
                 <Icon className="w-4 h-4" />
                 <span className="font-semibold text-sm">{tab.label}</span>
                 {count > 0 && (
-                  <span className={cn(
-                    "text-xs font-bold px-2 py-0.5 rounded-full",
-                    isActive
-                      ? "bg-indigo-100 text-indigo-600"
-                      : "bg-slate-200 text-slate-400"
-                  )}>
+                  <span
+                    className={cn(
+                      "text-xs font-bold px-2 py-0.5 rounded-full",
+                      isActive
+                        ? "bg-indigo-100 text-indigo-600"
+                        : "bg-slate-200 text-slate-400"
+                    )}
+                  >
                     {count}
                   </span>
                 )}
@@ -484,9 +519,13 @@ export default function DriverTripsPage() {
             >
               {filteredTrips.map((trip) => (
                 <TripCard
-                  key={trip.id}
+                  key={`${trip.vehicleType}-${trip.id}`}   // ← key must include vehicleType too
                   trip={trip}
-                  onPress={() => router.push(`/operator/trip-details?id=${trip.id}`)}
+                  onPress={() =>
+                    router.push(
+                      `/operator/trip-details?id=${trip.id}&vehicleType=${trip.vehicleType}`
+                    )
+                  }
                   onViewPassengers={() => {
                     setSelectedTrip(trip);
                     setShowPassengersModal(true);
@@ -501,20 +540,30 @@ export default function DriverTripsPage() {
               className="text-center py-16 bg-white/50 rounded-3xl"
             >
               <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
-                {activeTab === "upcoming" && <Clock className="w-10 h-10 text-slate-300" />}
-                {activeTab === "active" && <Radio className="w-10 h-10 text-slate-300" />}
-                {activeTab === "completed" && <CheckCircle className="w-10 h-10 text-slate-300" />}
-                {activeTab === "cancelled" && <XCircle className="w-10 h-10 text-slate-300" />}
+                {activeTab === "upcoming" && (
+                  <Clock className="w-10 h-10 text-slate-300" />
+                )}
+                {activeTab === "active" && (
+                  <Radio className="w-10 h-10 text-slate-300" />
+                )}
+                {activeTab === "completed" && (
+                  <CheckCircle className="w-10 h-10 text-slate-300" />
+                )}
+                {activeTab === "cancelled" && (
+                  <XCircle className="w-10 h-10 text-slate-300" />
+                )}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mt-4">No {activeTab} trips</h3>
+              <h3 className="text-xl font-bold text-gray-900 mt-4">
+                No {activeTab} trips
+              </h3>
               <p className="text-sm text-slate-400 mt-2 max-w-sm mx-auto">
                 {activeTab === "upcoming"
                   ? "You don't have any upcoming trips scheduled"
                   : activeTab === "active"
-                    ? "You don't have any active trips right now"
-                    : activeTab === "completed"
-                      ? "You haven't completed any trips yet"
-                      : "You don't have any cancelled trips"}
+                  ? "You don't have any active trips right now"
+                  : activeTab === "completed"
+                  ? "You haven't completed any trips yet"
+                  : "You don't have any cancelled trips"}
               </p>
             </motion.div>
           )}

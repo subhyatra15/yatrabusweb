@@ -40,10 +40,10 @@ export default function QRScannerPage() {
     const startScanner = async () => {
       try {
         console.log("Creating scanner instance...");
-        
+
         // Create instance
         html5QrCodeRef.current = new Html5Qrcode("qr-reader-container");
-        
+
         const onScanSuccess = async (decodedText: string) => {
           if (isScanningRef.current || scanned || isVerifying) return;
           isScanningRef.current = true;
@@ -55,9 +55,9 @@ export default function QRScannerPage() {
         const onScanError = (errorMessage: string) => {
           // Ignore - this is called for every frame
           // Only log actual errors
-          if (errorMessage && errorMessage.includes('NotAllowedError')) {
+          if (errorMessage && errorMessage.includes("NotAllowedError")) {
             setError("Camera permission denied. Please enable camera access.");
-          } else if (errorMessage && errorMessage.includes('NotFoundError')) {
+          } else if (errorMessage && errorMessage.includes("NotFoundError")) {
             setError("No camera found. Please ensure your device has a camera.");
           }
         };
@@ -72,17 +72,19 @@ export default function QRScannerPage() {
           onScanSuccess,
           onScanError
         );
-        
+
         setIsScannerReady(true);
         console.log("Camera started successfully!");
       } catch (err: any) {
         console.error("Error starting scanner:", err);
-        if (err.message?.includes('Permission')) {
+        if (err.message?.includes("Permission")) {
           setError("Camera permission denied. Please enable camera access.");
-        } else if (err.message?.includes('NotFound')) {
+        } else if (err.message?.includes("NotFound")) {
           setError("No camera found. Please ensure your device has a camera.");
         } else {
-          setError("Could not access camera. Please check permissions and try again.");
+          setError(
+            "Could not access camera. Please check permissions and try again."
+          );
         }
       }
     };
@@ -104,11 +106,13 @@ export default function QRScannerPage() {
     if (html5QrCodeRef.current && isScannerReady) {
       try {
         // @ts-ignore - applyVideoConstraints might not be in types
-        html5QrCodeRef.current.applyVideoConstraints({
-          advanced: [{ torch: torchOn }],
-        }).catch(() => {
-          console.log("Torch not supported");
-        });
+        html5QrCodeRef.current
+          .applyVideoConstraints({
+            advanced: [{ torch: torchOn }],
+          })
+          .catch(() => {
+            console.log("Torch not supported");
+          });
       } catch (e) {
         console.error("Torch error:", e);
       }
@@ -132,19 +136,25 @@ export default function QRScannerPage() {
 
     try {
       let qrToken = data.trim();
-      let vehicleType = "bus";
+      let vehicleType: "bus" | "hiace" = "bus";
 
-      // Try to parse JSON
+      // Try to parse JSON payload: { qrToken, vehicleType }
       try {
         const qrData = JSON.parse(data);
-        qrToken = qrData.qr_token || qrData.raw || data;
-        vehicleType = qrData.vehicleType || "bus";
+        qrToken = qrData.qrToken ?? qrData.qr_token ?? data;
+        vehicleType = qrData.vehicleType === "hiace" ? "hiace" : "bus";
       } catch {
+        // Legacy raw token — verifyTicket will try both endpoints
         qrToken = data.trim();
       }
 
       // Validate token
-      if (!qrToken || qrToken.length < 3 || qrToken === "ok" || qrToken === "OK") {
+      if (
+        !qrToken ||
+        qrToken.length < 3 ||
+        qrToken === "ok" ||
+        qrToken === "OK"
+      ) {
         setVerificationResult({
           success: false,
           message: "Invalid QR code. Please scan a valid ticket.",
@@ -170,7 +180,7 @@ export default function QRScannerPage() {
         success: result.success,
         message: result.message,
         booking: result.booking,
-        vehicleType: vehicleType,
+        vehicleType: result.vehicleType,
       });
       setShowResultModal(true);
     } catch (error: any) {
@@ -186,39 +196,122 @@ export default function QRScannerPage() {
     }
   };
 
-  const verifyTicket = async (qrToken: string, vehicleType: string) => {
+  // ------------------------------------------------------------------
+  // Normalize both bus and hiace verify responses into a single shape
+  // ------------------------------------------------------------------
+  const normalizeBooking = (raw: any, vehicleType: "bus" | "hiace") => {
+    if (!raw) return null;
+
+    // ── schedule ──────────────────────────────────────────
+    // Bus:   raw.schedule = { route: {...}, departure_datetime, ... }
+    // Hiace: raw.schedule = 37, raw.schedule_details = { route_details, ... }
+    let schedule: any;
+    if (vehicleType === "hiace") {
+      const details = raw.schedule_details ?? {};
+      const routeDetails = details.route_details ?? {};
+      schedule = {
+        id: details.id ?? raw.schedule,
+        source_city: routeDetails.source_city_name,
+        destination_city: routeDetails.destination_city_name,
+        bus_name: routeDetails.hiace_name, // reuse bus_name for display
+        hiace_name: routeDetails.hiace_name,
+        departure_datetime: details.departure_datetime,
+        arrival_datetime: details.arrival_datetime,
+      };
+    } else {
+      const s = raw.schedule ?? {};
+      schedule = {
+        id: s.id,
+        source_city: s.route?.source_city_name,
+        destination_city: s.route?.destination_city_name,
+        bus_name: s.route?.bus_name,
+        departure_datetime: s.departure_datetime,
+        arrival_datetime: s.arrival_datetime,
+      };
+    }
+
+    // ── passenger name ────────────────────────────────────
+    // Bus:   raw.customer = { full_name: "..." }
+    // Hiace: raw.customer = 4, raw.customer_name = "Naresh Nb"
+    const passengerName =
+      raw.customer?.full_name ??
+      raw.customer?.fullName ??
+      raw.customer_name ??
+      "—";
+
+    // ── route ─────────────────────────────────────────────
+    // Bus:   on schedule (source_city / destination_city from route_details)
+    // Hiace: raw.from_city / raw.to_city at top level
+    const fromCity = raw.from_city ?? schedule.source_city ?? "N/A";
+    const toCity = raw.to_city ?? schedule.destination_city ?? "N/A";
+
+    // ── seats ─────────────────────────────────────────────
+    // Both expose booking_seats with seat_number
+    const seats = raw.booking_seats ?? raw.seats ?? [];
+
+    return {
+      booking_number: raw.booking_number,
+      customer_name: passengerName,
+      seats,
+      from: fromCity,
+      to: toCity,
+      vehicle_name: schedule.bus_name ?? schedule.hiace_name ?? "—",
+      departure_datetime: schedule.departure_datetime,
+      total_amount: raw.total_amount,
+      booking_status: raw.booking_status,
+      vehicleType,
+    };
+  };
+
+  // ------------------------------------------------------------------
+  // Verify ticket — hits correct endpoint and falls back if needed
+  // ------------------------------------------------------------------
+  const verifyTicket = async (qrToken: string, vehicleTypeInput: string) => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
       throw new Error("Please login to verify tickets");
     }
 
+    let vehicleType: "bus" | "hiace" =
+      vehicleTypeInput === "hiace" ? "hiace" : "bus";
+
+    const endpoint =
+      vehicleType === "hiace"
+        ? `${API_URL}/api/v1/hiace-bookings/verify/`
+        : `${API_URL}/api/v1/bookings/verify/`;
+
     let response = null;
     let error = null;
 
     try {
-      response = await axios.get(
-        `${API_URL}/api/v1/bookings/verify/?qr_token=${qrToken}`,
-        {
+      response = await axios.get(endpoint, {
+        params: { qr_token: qrToken },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        timeout: 15000,
+      });
+    } catch (err: any) {
+      error = err;
+
+      // Fallback: if the declared vehicleType didn't match, try the other endpoint.
+      const fallbackEndpoint =
+        vehicleType === "hiace"
+          ? `${API_URL}/api/v1/bookings/verify/`
+          : `${API_URL}/api/v1/hiace-bookings/verify/`;
+
+      try {
+        response = await axios.get(fallbackEndpoint, {
+          params: { qr_token: qrToken },
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           timeout: 15000,
-        }
-      );
-    } catch (err) {
-      error = err;
-      try {
-        response = await axios.get(
-          `${API_URL}/api/v1/hiace-bookings/verify/?qr_token=${qrToken}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            timeout: 15000,
-          }
-        );
+        });
+        // If the fallback succeeded, flip the reported vehicleType
+        vehicleType = vehicleType === "hiace" ? "bus" : "hiace";
       } catch (err2) {
         error = err2;
       }
@@ -230,42 +323,49 @@ export default function QRScannerPage() {
       } else if (error?.response?.status === 404) {
         throw new Error("Ticket not found. Please check the QR code.");
       } else {
-        throw new Error("Could not verify ticket. Please check your connection.");
+        throw new Error(
+          "Could not verify ticket. Please check your connection."
+        );
       }
     }
 
-    if (response.data?.booking) {
-      const booking = response.data.booking;
-      const isValidStatus = booking.booking_status === "PAID" || 
-                           booking.booking_status === "CONFIRMED";
-
-      if (isValidStatus) {
-        return {
-          success: true,
-          message: "Ticket verified successfully!",
-          booking: booking,
-        };
-      } else {
-        return {
-          success: false,
-          message: `Booking is ${booking.booking_status.toLowerCase()}. Cannot verify.`,
-          booking: null,
-        };
-      }
-    } else {
+    const raw = response.data?.booking;
+    if (!raw) {
       return {
         success: false,
         message: response.data?.message || "Invalid ticket",
         booking: null,
+        vehicleType,
       };
     }
+
+    const isValidStatus =
+      raw.booking_status === "PAID" || raw.booking_status === "CONFIRMED";
+
+    if (!isValidStatus) {
+      return {
+        success: false,
+        message: `Booking is ${String(
+          raw.booking_status
+        ).toLowerCase()}. Cannot verify.`,
+        booking: null,
+        vehicleType,
+      };
+    }
+
+    return {
+      success: true,
+      message: "Ticket verified successfully!",
+      booking: normalizeBooking(raw, vehicleType),
+      vehicleType,
+    };
   };
 
   const handleScanAgain = async () => {
     setScanned(false);
     setVerificationResult(null);
     setShowResultModal(false);
-    
+
     // Resume scanner
     if (html5QrCodeRef.current) {
       try {
@@ -287,7 +387,7 @@ export default function QRScannerPage() {
               isScanningRef.current = false;
             },
             (errorMessage: string) => {
-              if (errorMessage && errorMessage.includes('NotAllowedError')) {
+              if (errorMessage && errorMessage.includes("NotAllowedError")) {
                 setError("Camera permission denied.");
               }
             }
@@ -313,9 +413,12 @@ export default function QRScannerPage() {
 
   const getSeatNumbers = (bookingSeats: any[]) => {
     if (!bookingSeats || bookingSeats.length === 0) return "N/A";
-    return bookingSeats.map((seat: any) => 
-      seat.seat_number || seat.seat?.seat_number || `Seat ${seat.id || '?'}`
-    ).join(", ");
+    return bookingSeats
+      .map(
+        (seat: any) =>
+          seat.seat_number || seat.seat?.seat_number || `Seat ${seat.id || "?"}`
+      )
+      .join(", ");
   };
 
   const getVehicleInfo = (vehicleType: string) => {
@@ -373,8 +476,8 @@ export default function QRScannerPage() {
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="relative w-full max-w-md aspect-square">
           {/* Camera feed - Html5Qrcode renders here */}
-          <div 
-            id="qr-reader-container" 
+          <div
+            id="qr-reader-container"
             className="w-full h-full bg-black rounded-2xl overflow-hidden"
           />
 
@@ -401,7 +504,7 @@ export default function QRScannerPage() {
             <div className="absolute top-4 right-4 w-8 h-8 border-t-3 border-r-3 border-indigo-500 rounded-tr" />
             <div className="absolute bottom-4 left-4 w-8 h-8 border-b-3 border-l-3 border-indigo-500 rounded-bl" />
             <div className="absolute bottom-4 right-4 w-8 h-8 border-b-3 border-r-3 border-indigo-500 rounded-br" />
-            
+
             {/* Scan line */}
             <motion.div
               animate={{
@@ -509,7 +612,9 @@ export default function QRScannerPage() {
               </div>
 
               <h3 className="text-2xl font-bold text-center text-gray-900">
-                {verificationResult.success ? "Verified!" : "Verification Failed"}
+                {verificationResult.success
+                  ? "Verified!"
+                  : "Verification Failed"}
               </h3>
               <p className="text-sm text-center text-slate-500 mt-1">
                 {verificationResult.message}
@@ -519,11 +624,13 @@ export default function QRScannerPage() {
               {verificationResult.success && verificationResult.booking && (
                 <>
                   <div className="flex justify-center mt-4">
-                    <div className={cn(
-                      "flex items-center gap-2 px-4 py-1.5 rounded-full border",
-                      vehicleInfo.bgColor,
-                      vehicleInfo.textColor
-                    )}>
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-1.5 rounded-full border",
+                        vehicleInfo.bgColor,
+                        vehicleInfo.textColor
+                      )}
+                    >
                       <Icon className="w-4 h-4" />
                       <span className="font-semibold text-sm">
                         {vehicleInfo.emoji} {vehicleInfo.label}
@@ -541,43 +648,48 @@ export default function QRScannerPage() {
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Passenger</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {verificationResult.booking.customer?.fullName}
+                        {verificationResult.booking.customer_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Seats</span>
                       <span className="text-sm font-semibold text-indigo-600">
-                        {getSeatNumbers(verificationResult.booking.booking_seats)}
+                        {getSeatNumbers(verificationResult.booking.seats)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Route</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {verificationResult.booking.schedule?.source_city} →{" "}
-                        {verificationResult.booking.schedule?.destination_city}
+                        {verificationResult.booking.from} →{" "}
+                        {verificationResult.booking.to}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Vehicle</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {verificationResult.booking.schedule?.bus_name ||
-                         verificationResult.booking.schedule?.hiace_name}
+                        {verificationResult.booking.vehicle_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Date</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {formatDate(verificationResult.booking.schedule?.departure_datetime)}
+                        {formatDate(
+                          verificationResult.booking.departure_datetime
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-slate-400">Time</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {formatTime(verificationResult.booking.schedule?.departure_datetime)}
+                        {formatTime(
+                          verificationResult.booking.departure_datetime
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-slate-200">
-                      <span className="text-sm font-bold text-gray-900">Amount</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        Amount
+                      </span>
                       <span className="text-lg font-bold text-indigo-600">
                         Rs. {verificationResult.booking.total_amount}
                       </span>
@@ -590,7 +702,7 @@ export default function QRScannerPage() {
               <div className="mt-6 space-y-3">
                 <button
                   onClick={handleScanAgain}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                  className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
                 >
                   <Scan className="w-5 h-5" />
                   {verificationResult.success ? "Scan Another" : "Try Again"}

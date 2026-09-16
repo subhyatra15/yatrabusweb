@@ -20,15 +20,11 @@ import {
   Info,
   ChevronRight,
   Timer,
-  DollarSign,
   Tag,
-  CheckCircle,
-  X,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
-import Image from "next/image";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -51,15 +47,14 @@ interface BookingData {
   bookingStatus: string;
   bookingNumber: string;
   discount: number;
-  platform_amount:number;
+  platform_amount: number;
 }
 
-// Helper functions
+// Helpers
 const formatDate = (dateString: string) => {
   if (!dateString) return "N/A";
   try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
+    return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -72,22 +67,7 @@ const formatDate = (dateString: string) => {
 const formatTime = (dateString: string) => {
   if (!dateString) return "N/A";
   try {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  } catch {
-    return "N/A";
-  }
-};
-
-const formatExpiryTime = (dateString: string) => {
-  if (!dateString) return "N/A";
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", {
+    return new Date(dateString).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
@@ -101,6 +81,7 @@ function PaymentPageComp() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
+  const vehicleType = searchParams.get("vehicleType"); // "bus" | "hiace" | null
 
   const [selectedPayment, setSelectedPayment] = useState("esewa");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -109,181 +90,220 @@ function PaymentPageComp() {
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
 
-  // Timer state
   const [timeRemaining, setTimeRemaining] = useState({
     minutes: 0,
     seconds: 0,
   });
   const [isExpired, setIsExpired] = useState(false);
   const [expiredAt, setExpiredAt] = useState<string | null>(null);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
 
-  // Timer effect
+  // ------------------------------------------------------------
+  // Timer
+  // ------------------------------------------------------------
   useEffect(() => {
     if (!expiredAt) return;
 
     const updateTimer = () => {
-      const now = new Date().getTime();
-      const expiryTime = new Date(expiredAt).getTime();
-      const difference = expiryTime - now;
-
+      const difference = new Date(expiredAt).getTime() - Date.now();
       if (difference <= 0) {
         setIsExpired(true);
         setTimeRemaining({ minutes: 0, seconds: 0 });
         return;
       }
-
-      const minutes = Math.floor(difference / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-      setTimeRemaining({ minutes, seconds });
+      setTimeRemaining({
+        minutes: Math.floor(difference / 60000),
+        seconds: Math.floor((difference % 60000) / 1000),
+      });
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
-
     return () => clearInterval(interval);
   }, [expiredAt]);
 
-  // Fetch booking data
+  // ------------------------------------------------------------
+  // Fetch booking
+  // ------------------------------------------------------------
   useEffect(() => {
-    if (id) {
-      fetchBookingDetails(id);
-    }
-  }, [id]);
+    if (id) fetchBookingDetails(id);
+  }, [id, vehicleType]);
 
-  const fetchBookingDetails = async (id: string) => {
+  const fetchBookingDetails = async (bookingIdParam: string) => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("accessToken");
 
-      const response = await axios.get(`${API_URL}/api/v1/bookings/${id}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        timeout: 15000,
-      });
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      };
 
-      if (response.data) {
-        const data = response.data;
-        setBookingId(data.id);
+      // Try the indicated vehicle type first; if not provided, try bus then hiace.
+      const tryEndpoints: ("bus" | "hiace")[] = vehicleType
+        ? [vehicleType as "bus" | "hiace"]
+        : ["bus", "hiace"];
 
-        if (data.expired_at) {
-          setExpiredAt(data.expired_at);
-          const now = new Date().getTime();
-          const expiryTime = new Date(data.expired_at).getTime();
-          if (now >= expiryTime) {
-            setIsExpired(true);
-          }
+      let response: any = null;
+      let detectedType: "bus" | "hiace" | null = null;
+
+      for (const type of tryEndpoints) {
+        try {
+          const url =
+            type === "bus"
+              ? `${API_URL}/api/v1/bookings/${bookingIdParam}/`
+              : `${API_URL}/api/v1/hiace-bookings/${bookingIdParam}/`;
+          response = await axios.get(url, { headers, timeout: 15000 });
+          detectedType = type;
+          break;
+        } catch (err: any) {
+          // If 404, try the next endpoint; otherwise rethrow
+          if (err?.response?.status !== 404) throw err;
         }
-
-        const transformedData: BookingData = {
-          busName: data.schedule?.bus_name || "Bus",
-          from: data.boarding_stop?.city || "Source",
-          to: data.dropping_stop?.city || "Destination",
-          date: formatDate(data.schedule?.departure_datetime),
-          departure: formatTime(data.schedule?.departure_datetime),
-          arrival: formatTime(data.schedule?.arrival_datetime),
-          seats: data.booking_seats?.map((seat: any) => seat.seat_number?.toString()) || [],
-          seatCount: data.booking_seats?.length || 0,
-          pricePerSeat: data.booking_seats?.length > 0 ? parseFloat(data.booking_seats[0].price) || 0 : 0,
-          total: parseFloat(data.subtotal) || 0,
-          bookingFee: 0,
-          tax: parseFloat(data.tax) || 0,
-          grandTotal: parseFloat(data.total_amount) || 0,
-          bookingStatus: data.booking_status,
-          bookingNumber: data.booking_number,
-          discount: parseFloat(data.discount) || 0,
-          platform_amount:parseFloat(data.platform_amount) || 0,
-        };
-
-        setBookingData(transformedData);
       }
+
+      if (!response || !detectedType) {
+        throw new Error("Booking not found");
+      }
+
+      const data = response.data;
+      const isHiace = detectedType === "hiace";
+
+      setBookingId(data.id);
+      if (data.expired_at) setExpiredAt(data.expired_at);
+      if (data.created_at) setCreatedAt(data.created_at);
+
+      if (
+        data.expired_at &&
+        Date.now() >= new Date(data.expired_at).getTime()
+      ) {
+        setIsExpired(true);
+      }
+
+      // ── Normalize schedule (bus vs hiace) ──────────────────
+      const schedule = isHiace ? data.schedule_details : data.schedule;
+      const route = isHiace ? schedule?.route_details : schedule?.route;
+
+      const busName =
+        route?.bus_name ||
+        route?.hiace_name ||
+        data.schedule?.bus_name ||
+        (isHiace ? "Hiace" : "Bus");
+
+      const from =
+        data.from_city ||
+        data.boarding_stop?.city ||
+        data.boarding_stop?.city_name ||
+        route?.source_city_name ||
+        "Source";
+
+      const to =
+        data.to_city ||
+        data.dropping_stop?.city ||
+        data.dropping_stop?.city_name ||
+        route?.destination_city_name ||
+        "Destination";
+
+      // ── Normalize seats ────────────────────────────────────
+      const rawSeats: any[] =
+        data.booking_seats ??
+        data.seats ??
+        (data.seat_numbers ?? []).map((n: any) => ({ seat: n })) ??
+        [];
+
+      const seats: string[] = rawSeats.map((s: any) =>
+        String(s?.seat_number ?? s?.seat ?? s),
+      );
+
+      const transformedData: BookingData = {
+        busName,
+        from,
+        to,
+        date: formatDate(schedule?.departure_datetime),
+        departure: formatTime(schedule?.departure_datetime),
+        arrival: formatTime(schedule?.arrival_datetime),
+        seats,
+        seatCount: rawSeats.length,
+        pricePerSeat:
+          rawSeats.length > 0 ? parseFloat(rawSeats[0].price) || 0 : 0,
+        total: parseFloat(data.subtotal) || 0,
+        bookingFee: 0,
+        tax: parseFloat(data.tax) || 0,
+        grandTotal: parseFloat(data.total_amount) || 0,
+        bookingStatus: data.booking_status,
+        bookingNumber: data.booking_number,
+        discount: parseFloat(data.discount) || 0,
+        platform_amount: parseFloat(data.platform_amount) || 0,
+      };
+
+      setBookingData(transformedData);
     } catch (error: any) {
       console.error("Error fetching booking:", error);
-      alert("Failed to load booking details. Please try again.");
+      alert(
+        error?.response?.data?.message ||
+          "Failed to load booking details. Please try again.",
+      );
       router.back();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Pay With Esewa
+  // ------------------------------------------------------------
+  // Payments
+  // ------------------------------------------------------------
   const payWithEsewa = async (booking_id: number) => {
     try {
       setIsProcessing(true);
       const token = localStorage.getItem("accessToken");
-
       if (!token) {
         alert("Please login to continue");
-        setIsProcessing(false);
         return;
       }
-
       if (!booking_id) {
         alert("Booking ID not found");
-        setIsProcessing(false);
         return;
       }
 
-      const response = await axios.post(
-        `${API_URL}/api/v1/payments/esewa/initiate/`,
-        {
-          booking_id: booking_id,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response =
+        vehicleType === "bus"
+          ? await axios.post(
+              `${API_URL}/api/v1/payments/esewa/initiate/`,
+              { booking_id },
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            )
+          : await axios.post(
+              `${API_URL}/api/v1/payments/hiace/esewa/initiate/`,
+              { booking_id },
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            );
 
       const d = response.data;
-
       if (!d.payment_url || !d.signature) {
         throw new Error("Invalid payment response");
       }
 
-      // Build the form HTML for eSewa
       const formHtml = `
         <html>
           <head>
             <title>eSewa Payment</title>
             <style>
-              body { 
-                display: flex; 
-                justify-content: center; 
-                align-items: center; 
-                height: 100vh; 
-                margin: 0; 
-                background: #f5f5f5;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              }
-              .container {
-                text-align: center;
-                padding: 40px;
-                background: white;
-                border-radius: 16px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-                max-width: 400px;
-                width: 90%;
-              }
-              .spinner {
-                width: 50px;
-                height: 50px;
-                border: 4px solid #e2e8f0;
-                border-top: 4px solid #4f46e5;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-                margin: 0 auto 20px;
-              }
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-              h2 { color: #0f172a; margin-bottom: 8px; }
-              p { color: #64748b; margin: 0; }
+              body { display:flex; justify-content:center; align-items:center; height:100vh; margin:0; background:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+              .container { text-align:center; padding:40px; background:white; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.1); max-width:400px; width:90%; }
+              .spinner { width:50px; height:50px; border:4px solid #e2e8f0; border-top:4px solid #4f46e5; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 20px; }
+              @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
+              h2 { color:#0f172a; margin-bottom:8px; }
+              p { color:#64748b; margin:0; }
             </style>
           </head>
           <body>
@@ -305,89 +325,106 @@ function PaymentPageComp() {
               <input type="hidden" name="signed_field_names" value="${d.signed_field_names}" />
               <input type="hidden" name="signature" value="${d.signature}" />
             </form>
-            <script>
-              document.getElementById('esewaForm').submit();
-            </script>
+            <script>document.getElementById('esewaForm').submit();</script>
           </body>
         </html>
       `;
 
-      // Open eSewa in a new window
       const newWindow = window.open(
         "",
         "eSewa Payment",
-        "width=600,height=700,scrollbars=yes"
+        "width=600,height=700,scrollbars=yes",
       );
-
       if (newWindow) {
         newWindow.document.write(formHtml);
         newWindow.document.close();
       } else {
-        // Fallback: direct navigation
         window.location.href = d.payment_url;
       }
     } catch (error: any) {
       console.error("eSewa payment error:", error);
-      alert(error.response?.data?.message || "Failed to initiate payment. Please try again.");
+      alert(
+        error.response?.data?.message ||
+          "Failed to initiate payment. Please try again.",
+      );
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Pay With Khalti
   const payWithKhalti = async (booking_id: number) => {
     try {
       setIsProcessing(true);
       const token = localStorage.getItem("accessToken");
-
       if (!token) {
         alert("Please login to continue");
-        setIsProcessing(false);
         return;
       }
-
       if (!booking_id) {
         alert("Booking ID not found");
-        setIsProcessing(false);
         return;
       }
 
       const response = await axios.post(
         `${API_URL}/api/v1/payments/khalti/initiate/`,
-        {
-          booking_id: booking_id,
-        },
+        { booking_id },
         {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       const d = response.data;
+      if (!d.payment_url) throw new Error("Invalid payment response");
 
-      if (!d.payment_url) {
-        throw new Error("Invalid payment response");
-      }
-
-      // Open Khalti in a new window
       const newWindow = window.open(
         d.payment_url,
         "Khalti Payment",
-        "width=600,height=700,scrollbars=yes"
+        "width=600,height=700,scrollbars=yes",
       );
-
-      if (!newWindow) {
-        // Fallback: direct navigation
-        window.location.href = d.payment_url;
-      }
+      if (!newWindow) window.location.href = d.payment_url;
     } catch (error: any) {
       console.error("Khalti payment error:", error);
-      alert(error.response?.data?.message || "Failed to initiate payment. Please try again.");
+      alert(
+        error.response?.data?.message ||
+          "Failed to initiate payment. Please try again.",
+      );
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // ------------------------------------------------------------
+  // Derived state — MUST be before handlePayment
+  // ------------------------------------------------------------
+  const isBookingValid =
+    !!bookingData &&
+    bookingData.bookingStatus !== "EXPIRED" &&
+    bookingData.bookingStatus !== "CANCELLED" &&
+    !isExpired;
+
+  const handlePayment = async () => {
+    if (!bookingId) {
+      alert("Booking ID not found. Please try again.");
+      return;
+    }
+    if (!isBookingValid) {
+      alert(
+        `This booking is ${bookingData?.bookingStatus?.toLowerCase()}. Payment cannot be processed.`,
+      );
+      return;
+    }
+    if (isExpired) {
+      alert("This booking has expired. Please make a new booking.");
+      return;
+    }
+
+    if (selectedPayment === "esewa") await payWithEsewa(bookingId);
+    else if (selectedPayment === "khalti") await payWithKhalti(bookingId);
+    else if (selectedPayment === "card")
+      alert("Card payment integration coming soon!");
   };
 
   const paymentMethods = [
@@ -417,32 +454,9 @@ function PaymentPageComp() {
     },
   ];
 
-  const handlePayment = async () => {
-    if (!bookingId) {
-      alert("Booking ID not found. Please try again.");
-      return;
-    }
-
-    if (!isBookingValid) {
-      alert(`This booking is ${bookingData?.bookingStatus?.toLowerCase()}. Payment cannot be processed.`);
-      return;
-    }
-
-    if (isExpired) {
-      alert("This booking has expired. Please make a new booking.");
-      return;
-    }
-
-    if (selectedPayment === "esewa") {
-      await payWithEsewa(bookingId);
-    } else if (selectedPayment === "khalti") {
-      await payWithKhalti(bookingId);
-    } else if (selectedPayment === "card") {
-      alert("Card payment integration coming soon!");
-    }
-  };
-
-  // Render Timer Component
+  // ------------------------------------------------------------
+  // Timer UI
+  // ------------------------------------------------------------
   const renderTimer = () => {
     const { minutes, seconds } = timeRemaining;
 
@@ -450,13 +464,22 @@ function PaymentPageComp() {
       return (
         <div className="flex items-center gap-2 bg-red-50 mx-4 mt-4 px-4 py-3 rounded-xl border border-red-200">
           <AlertCircle className="w-4 h-4 text-red-500" />
-          <span className="text-sm font-semibold text-red-600">Booking Expired</span>
+          <span className="text-sm font-semibold text-red-600">
+            Booking Expired
+          </span>
         </div>
       );
     }
 
     const totalSeconds = minutes * 60 + seconds;
-    const totalInitialSeconds = 15 * 60;
+    const totalInitialSeconds =
+      expiredAt && createdAt
+        ? Math.max(
+            (new Date(expiredAt).getTime() - new Date(createdAt).getTime()) /
+              1000,
+            1,
+          )
+        : 600;
     const progress = Math.min(totalSeconds / totalInitialSeconds, 1);
 
     return (
@@ -464,24 +487,34 @@ function PaymentPageComp() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Timer className="w-4 h-4 text-indigo-600" />
-            <span className="text-sm font-semibold text-slate-600">Time Remaining</span>
+            <span className="text-sm font-semibold text-slate-600">
+              Time Remaining
+            </span>
           </div>
           <div className="flex items-center gap-1">
             <div className="flex items-center gap-0.5">
-              <span className={cn(
-                "text-xl font-bold font-mono min-w-[24px] text-center",
-                seconds < 10 && minutes === 0 ? "text-red-500" : "text-gray-900"
-              )}>
+              <span
+                className={cn(
+                  "text-xl font-bold font-mono min-w-[24px] text-center",
+                  seconds < 10 && minutes === 0
+                    ? "text-red-500"
+                    : "text-gray-900",
+                )}
+              >
                 {String(minutes).padStart(2, "0")}
               </span>
               <span className="text-xs text-slate-400 font-medium">m</span>
             </div>
             <span className="text-lg font-bold text-slate-300">:</span>
             <div className="flex items-center gap-0.5">
-              <span className={cn(
-                "text-xl font-bold font-mono min-w-[24px] text-center",
-                seconds < 10 && minutes === 0 ? "text-red-500" : "text-gray-900"
-              )}>
+              <span
+                className={cn(
+                  "text-xl font-bold font-mono min-w-[24px] text-center",
+                  seconds < 10 && minutes === 0
+                    ? "text-red-500"
+                    : "text-gray-900",
+                )}
+              >
                 {String(seconds).padStart(2, "0")}
               </span>
               <span className="text-xs text-slate-400 font-medium">s</span>
@@ -492,7 +525,7 @@ function PaymentPageComp() {
           <div
             className={cn(
               "h-full rounded-full transition-all duration-1000",
-              totalSeconds < 60 ? "bg-red-500" : "bg-indigo-600"
+              totalSeconds < 60 ? "bg-red-500" : "bg-indigo-600",
             )}
             style={{ width: `${progress * 100}%` }}
           />
@@ -501,21 +534,26 @@ function PaymentPageComp() {
     );
   };
 
+  // ------------------------------------------------------------
+  // Loading / Not found states
+  // ------------------------------------------------------------
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <Receipt className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
-          <p className="mt-6 text-indigo-600 font-medium">Loading booking details...</p>
+          <p className="mt-6 text-indigo-600 font-medium">
+            Loading booking details...
+          </p>
         </motion.div>
       </div>
     );
@@ -523,14 +561,16 @@ function PaymentPageComp() {
 
   if (!bookingData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-10 h-10 text-red-400" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900 mt-4">Booking not found</h3>
+        <h3 className="text-xl font-bold text-gray-900 mt-4">
+          Booking not found
+        </h3>
         <button
           onClick={() => router.back()}
-          className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+          className="mt-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
         >
           Go Back
         </button>
@@ -538,13 +578,11 @@ function PaymentPageComp() {
     );
   }
 
-  const isBookingValid =
-    bookingData.bookingStatus !== "EXPIRED" &&
-    bookingData.bookingStatus !== "CANCELLED" &&
-    !isExpired;
-
+  // ------------------------------------------------------------
+  // Render
+  // ------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -573,10 +611,8 @@ function PaymentPageComp() {
       </motion.div>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-32">
-        {/* Timer Section */}
         {expiredAt && renderTimer()}
 
-        {/* Booking Status Warning */}
         {!isBookingValid && (
           <div className="flex items-center gap-3 bg-red-50 mx-0 my-4 px-4 py-3 rounded-xl border border-red-200">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
@@ -599,23 +635,33 @@ function PaymentPageComp() {
 
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/20 flex-shrink-0">
                   <Bus className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900">{bookingData.busName}</p>
+                  <p className="font-bold text-gray-900">
+                    {bookingData.busName}
+                  </p>
                   <p className="text-sm text-slate-500">
                     {bookingData.from} → {bookingData.to}
                   </p>
                 </div>
               </div>
-              <span className={cn(
-                "text-xs font-semibold px-3 py-1 rounded-full",
-                bookingData.bookingStatus === "CONFIRMED" && "bg-emerald-50 text-emerald-600",
-                bookingData.bookingStatus === "EXPIRED" && "bg-red-50 text-red-600",
-                bookingData.bookingStatus === "CANCELLED" && "bg-slate-100 text-slate-500",
-                !bookingData.bookingStatus && "bg-amber-50 text-amber-600"
-              )}>
+              <span
+                className={cn(
+                  "text-xs font-semibold px-3 py-1 rounded-full",
+                  bookingData.bookingStatus === "CONFIRMED" &&
+                    "bg-emerald-50 text-emerald-600",
+                  bookingData.bookingStatus === "PAID" &&
+                    "bg-emerald-50 text-emerald-600",
+                  bookingData.bookingStatus === "EXPIRED" &&
+                    "bg-red-50 text-red-600",
+                  bookingData.bookingStatus === "CANCELLED" &&
+                    "bg-slate-100 text-slate-500",
+                  bookingData.bookingStatus === "PENDING" &&
+                    "bg-amber-50 text-amber-600",
+                )}
+              >
                 {bookingData.bookingStatus || "PENDING"}
               </span>
             </div>
@@ -627,11 +673,13 @@ function PaymentPageComp() {
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Clock className="w-4 h-4 text-slate-400" />
-                <span>{bookingData.departure} - {bookingData.arrival}</span>
+                <span>
+                  {bookingData.departure} - {bookingData.arrival}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Armchair  className="w-4 h-4 text-slate-400" />
-                <span>Seats: {bookingData.seats.join(", ")}</span>
+                <Armchair className="w-4 h-4 text-slate-400" />
+                <span>Seats: {bookingData.seats.join(", ") || "—"}</span>
               </div>
               {bookingData.bookingNumber && (
                 <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -657,25 +705,24 @@ function PaymentPageComp() {
                 key={method.id}
                 whileHover={isBookingValid ? { scale: 1.01 } : {}}
                 whileTap={isBookingValid ? { scale: 0.99 } : {}}
-                onClick={() => {
-                  if (isBookingValid) {
-                    setSelectedPayment(method.id);
-                  }
-                }}
+                onClick={() => isBookingValid && setSelectedPayment(method.id)}
                 disabled={!isBookingValid}
                 className={cn(
                   "w-full flex items-center gap-4 bg-white/70 backdrop-blur-sm p-4 rounded-2xl border-2 transition-all shadow-sm",
                   selectedPayment === method.id
                     ? "border-indigo-500 bg-indigo-50/30 shadow-md shadow-indigo-500/10"
                     : "border-slate-200/50 hover:border-indigo-200",
-                  !isBookingValid && "opacity-50 cursor-not-allowed"
+                  !isBookingValid && "opacity-50 cursor-not-allowed",
                 )}
               >
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: method.bg }}
                 >
-                  <method.icon className="w-6 h-6" style={{ color: method.color }} />
+                  <method.icon
+                    className="w-6 h-6"
+                    style={{ color: method.color }}
+                  />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-gray-900">{method.name}</p>
@@ -700,29 +747,40 @@ function PaymentPageComp() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">
-                {bookingData.seatCount} seats × Rs. {bookingData.pricePerSeat.toFixed(2)}
+                {bookingData.seatCount} seats × Rs.{" "}
+                {bookingData.pricePerSeat.toFixed(2)}
               </span>
-              <span className="font-semibold text-gray-900">Rs. {bookingData.total.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900">
+                Rs. {bookingData.total.toFixed(2)}
+              </span>
             </div>
             {bookingData.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-emerald-600">Discount</span>
-                <span className="font-semibold text-emerald-600">-Rs. {bookingData.discount.toFixed(2)}</span>
+                <span className="font-semibold text-emerald-600">
+                  -Rs. {bookingData.discount.toFixed(2)}
+                </span>
               </div>
             )}
             {bookingData.bookingFee > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Booking Fee</span>
-                <span className="font-semibold text-gray-900">Rs. {bookingData.bookingFee.toFixed(2)}</span>
+                <span className="font-semibold text-gray-900">
+                  Rs. {bookingData.bookingFee.toFixed(2)}
+                </span>
               </div>
             )}
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Tax</span>
-              <span className="font-semibold text-gray-900">Rs. {bookingData.tax.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900">
+                Rs. {bookingData.tax.toFixed(2)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Platform Charge</span>
-              <span className="font-semibold text-gray-900">Rs. {bookingData.platform_amount.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900">
+                Rs. {bookingData.platform_amount.toFixed(2)}
+              </span>
             </div>
             <div className="border-t border-slate-200 pt-2 mt-2">
               <div className="flex justify-between">
@@ -766,7 +824,8 @@ function PaymentPageComp() {
         >
           <Shield className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-slate-500 leading-relaxed">
-            By proceeding, you agree to our Terms & Conditions and Privacy Policy
+            By proceeding, you agree to our Terms &amp; Conditions and Privacy
+            Policy
           </p>
         </motion.div>
       </main>
@@ -780,7 +839,9 @@ function PaymentPageComp() {
         >
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 font-medium">Total including fees</p>
+              <p className="text-xs text-slate-400 font-medium">
+                Total including fees
+              </p>
               <p className="text-2xl font-extrabold text-indigo-600">
                 Rs. {bookingData.grandTotal.toFixed(2)}
               </p>
@@ -791,8 +852,8 @@ function PaymentPageComp() {
               onClick={handlePayment}
               disabled={isProcessing}
               className={cn(
-                "bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all",
-                isProcessing && "opacity-70 cursor-not-allowed"
+                "bg-linear-to-r from-indigo-600 to-purple-600 text-white px-8 py-3.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all",
+                isProcessing && "opacity-70 cursor-not-allowed",
               )}
             >
               {isProcessing ? (
@@ -826,22 +887,33 @@ function PaymentPageComp() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25 mb-4">
+                <div className="w-20 h-20 rounded-full bg-linear-to-r from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25 mb-4">
                   <Check className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-extrabold text-gray-900">Payment Successful! 🎉</h3>
+                <h3 className="text-2xl font-extrabold text-gray-900">
+                  Payment Successful! 🎉
+                </h3>
                 <p className="text-sm text-slate-500 mt-2">
-                  Your booking has been confirmed. You will receive a confirmation email shortly.
+                  Your booking has been confirmed. You will receive a
+                  confirmation email shortly.
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 mt-4">
                   <div className="text-center">
-                    <p className="text-xs text-slate-400 font-medium">Booking ID</p>
-                    <p className="font-bold text-gray-900">#{bookingData.bookingNumber || "N/A"}</p>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Booking ID
+                    </p>
+                    <p className="font-bold text-gray-900">
+                      #{bookingData.bookingNumber || "N/A"}
+                    </p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-slate-400 font-medium">Amount Paid</p>
-                    <p className="font-bold text-indigo-600">Rs. {bookingData.grandTotal.toFixed(2)}</p>
+                    <p className="text-xs text-slate-400 font-medium">
+                      Amount Paid
+                    </p>
+                    <p className="font-bold text-indigo-600">
+                      Rs. {bookingData.grandTotal.toFixed(2)}
+                    </p>
                   </div>
                 </div>
 
@@ -850,7 +922,7 @@ function PaymentPageComp() {
                     setShowSuccessModal(false);
                     router.push("/bookings");
                   }}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold mt-4 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                  className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3.5 font-semibold mt-4 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
                 >
                   View My Bookings
                 </button>

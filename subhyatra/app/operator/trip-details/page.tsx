@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Share2,
   Bus,
-  Car,
   User,
   Phone,
   Star,
@@ -18,24 +17,17 @@ import {
   Snowflake,
   Tv,
   Users,
-  Armchair ,
+  Armchair,
   Wallet,
-  Calendar,
   Clock,
-  MapPin,
   CheckCircle,
   XCircle,
   AlertCircle,
   Play,
-  OctagonX,
   ChevronRight,
   X,
   Loader2,
   RefreshCw,
-  Info,
-  Award,
-  Shield,
-  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
@@ -56,6 +48,7 @@ interface Passenger {
 
 interface TripDetail {
   id: number;
+  tripType: "bus" | "hiace";        // what kind of vehicle this trip is
   route: string;
   from: string;
   to: string;
@@ -66,7 +59,7 @@ interface TripDetail {
   duration: string;
   vehicle: string;
   vehicleNumber: string;
-  vehicleType: string;
+  vehicleCategory: string;          // "AC", "Deluxe", etc. (was `vehicleType` on backend)
   totalSeats: number;
   availableSeats: number;
   bookedSeats: number;
@@ -91,95 +84,22 @@ interface TripDetail {
   }[];
 }
 
-// Demo Data
-const DEMO_TRIP: TripDetail = {
-  id: 1,
-  route: "Kathmandu → Pokhara",
-  from: "Kathmandu",
-  to: "Pokhara",
-  departureDate: "2024-01-15T08:00:00",
-  departureTime: "2024-01-15T08:00:00",
-  arrivalDate: "2024-01-15T13:30:00",
-  arrivalTime: "2024-01-15T13:30:00",
-  duration: "5h 30m",
-  vehicle: "Sajha Bus",
-  vehicleNumber: "BA 1 KA 1234",
-  vehicleType: "AC",
-  totalSeats: 40,
-  availableSeats: 8,
-  bookedSeats: 32,
-  fare: 1500,
-  status: "active",
-  driver: {
-    name: "Ramesh Thapa",
-    phone: "+977 980-1234567",
-    rating: 4.8,
-  },
-  passengers: [
-    {
-      id: 1,
-      name: "Rahul Sharma",
-      seatNumber: "A1",
-      bookingId: "BK-12345",
-      status: "checked_in",
-      phone: "+977 984-1234567",
-      email: "rahul@example.com",
-    },
-    {
-      id: 2,
-      name: "Sita Giri",
-      seatNumber: "A2",
-      bookingId: "BK-12346",
-      status: "confirmed",
-      phone: "+977 984-1234568",
-      email: "sita@example.com",
-    },
-    {
-      id: 3,
-      name: "Hari Poudel",
-      seatNumber: "B1",
-      bookingId: "BK-12347",
-      status: "confirmed",
-      phone: "+977 984-1234569",
-      email: "hari@example.com",
-    },
-    {
-      id: 4,
-      name: "Gita Adhikari",
-      seatNumber: "B2",
-      bookingId: "BK-12348",
-      status: "checked_in",
-      phone: "+977 984-1234570",
-      email: "gita@example.com",
-    },
-  ],
-  earnings: {
-    total: 48000,
-    platformFee: 4800,
-    driverEarnings: 43200,
-  },
-  amenities: ["WiFi", "Charging", "AC", "TV"],
-  stops: [
-    { name: "Kathmandu", time: "08:00 AM", type: "boarding" },
-    { name: "Naubise", time: "09:30 AM", type: "boarding" },
-    { name: "Malekhu", time: "10:30 AM", type: "dropping" },
-    { name: "Pokhara", time: "01:30 PM", type: "dropping" },
-  ],
-};
-
- function TripDetailsPageComp() {
+function TripDetailsPageComp() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
+  const vehicleType = searchParams.get("vehicleType"); // "bus" | "hiace" | null
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tripDetails, setTripDetails] = useState<TripDetail | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPassengersModal, setShowPassengersModal] = useState(false);
   const [showStopsModal, setShowStopsModal] = useState(false);
-  const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null);
-  const [showPassengerDetailModal, setShowPassengerDetailModal] = useState(false);
-  const [usingDemoData, setUsingDemoData] = useState(false);
+  const [selectedPassenger, setSelectedPassenger] =
+    useState<Passenger | null>(null);
+  const [showPassengerDetailModal, setShowPassengerDetailModal] =
+    useState(false);
 
   // Helper functions
   const getStatusColor = (status: string) => {
@@ -197,21 +117,6 @@ const DEMO_TRIP: TripDetail = {
     }
   };
 
-  const getStatusBgColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-emerald-50 text-emerald-600 border-emerald-100";
-      case "upcoming":
-        return "bg-blue-50 text-blue-600 border-blue-100";
-      case "completed":
-        return "bg-purple-50 text-purple-600 border-purple-100";
-      case "cancelled":
-        return "bg-red-50 text-red-600 border-red-100";
-      default:
-        return "bg-slate-50 text-slate-600 border-slate-100";
-    }
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "active":
@@ -224,19 +129,6 @@ const DEMO_TRIP: TripDetail = {
         return XCircle;
       default:
         return AlertCircle;
-    }
-  };
-
-  const getPassengerStatusColor = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "#3b82f6";
-      case "checked_in":
-        return "#22c55e";
-      case "cancelled":
-        return "#ef4444";
-      default:
-        return "#94a3b8";
     }
   };
 
@@ -299,45 +191,67 @@ const DEMO_TRIP: TripDetail = {
 
   // Fetch trip details
   const fetchTripDetails = useCallback(async () => {
+    setErrorMessage(null);
+
+    // Guard: both id AND vehicleType are required
+    if (!id || !vehicleType) {
+      setErrorMessage(
+        "Missing trip id or vehicle type. Please go back and try again."
+      );
+      setTripDetails(null);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        console.log("No token found, using demo data");
-        useDemoData();
+        setErrorMessage("You are not logged in. Please log in to continue.");
+        setTripDetails(null);
         return;
       }
 
-      const response = await axios.get(`${API_URL}/api/v1/driver/trips/${id}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get(
+        `${API_URL}/api/v1/driver/trips/${id}/`,
+        {
+          params: { vehicleType }, // → ?vehicleType=bus
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       if (response.data && response.data.id) {
         setTripDetails(response.data);
-        setUsingDemoData(false);
       } else {
-        console.log("Empty response, using demo data");
-        useDemoData();
+        setErrorMessage("Trip details could not be loaded.");
+        setTripDetails(null);
       }
     } catch (error: any) {
       console.error("Error fetching trip details:", error);
-      useDemoData();
 
-      if (error.response?.status === 401) {
+      const status = error?.response?.status;
+      const serverMsg = error?.response?.data?.error;
+
+      if (status === 401) {
         alert("Session Expired. Please login again.");
         router.push("/login");
+        return;
       }
+
+      setErrorMessage(
+        serverMsg ||
+          (status === 404
+            ? "Trip not found for this operator."
+            : "Failed to load trip details. Please try again.")
+      );
+      setTripDetails(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id, router]);
-
-  const useDemoData = () => {
-    setTripDetails(DEMO_TRIP);
-    setUsingDemoData(true);
-  };
+  }, [id, vehicleType, router]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -346,13 +260,14 @@ const DEMO_TRIP: TripDetail = {
 
   // Load data
   useEffect(() => {
-    if (id) {
-      fetchTripDetails();
-    }
-  }, [id, fetchTripDetails]);
+    fetchTripDetails();
+  }, [fetchTripDetails]);
 
-  const StatusIcon = tripDetails ? getStatusIcon(tripDetails.status) : AlertCircle;
+  const StatusIcon = tripDetails
+    ? getStatusIcon(tripDetails.status)
+    : AlertCircle;
 
+  // ---------------- Loading state ----------------
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
@@ -367,29 +282,45 @@ const DEMO_TRIP: TripDetail = {
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
           </div>
-          <p className="mt-6 text-indigo-600 font-medium">Loading trip details...</p>
+          <p className="mt-6 text-indigo-600 font-medium">
+            Loading trip details...
+          </p>
         </motion.div>
       </div>
     );
   }
 
-  if (!tripDetails) {
+  // ---------------- Error state ----------------
+  if (errorMessage || !tripDetails) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30 px-6">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-10 h-10 text-red-400" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">Trip not found</h3>
-        <button
-          onClick={() => router.back()}
-          className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
-        >
-          Go Back
-        </button>
+        <p className="text-sm text-slate-400 mt-2 text-center max-w-sm">
+          {errorMessage || "We couldn't load this trip's details."}
+        </p>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => router.back()}
+            className="bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition-all"
+          >
+            Go Back
+          </button>
+          <button
+            onClick={onRefresh}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all flex items-center gap-2"
+          >
+            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
+  // ---------------- Main content ----------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
@@ -414,30 +345,30 @@ const DEMO_TRIP: TripDetail = {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={onRefresh}
               className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center hover:bg-indigo-100 transition-colors"
             >
-              <Share2 className="w-5 h-5 text-indigo-600" />
+              <RefreshCw
+                className={cn(
+                  "w-5 h-5 text-indigo-600",
+                  refreshing && "animate-spin"
+                )}
+              />
             </motion.button>
           </div>
         </div>
       </motion.div>
 
       <main className="max-w-6xl mx-auto px-4 py-4 pb-24">
-        {/* Demo Banner */}
-        {usingDemoData && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4">
-            <Info className="w-4 h-4 text-amber-500" />
-            <span className="text-sm text-amber-600 font-medium">Showing demo data</span>
-          </div>
-        )}
-
         {/* Status Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl p-5 mb-4 text-white shadow-lg"
           style={{
-            background: `linear-gradient(135deg, ${getStatusColor(tripDetails.status)}, ${getStatusColor(tripDetails.status)}dd)`,
+            background: `linear-gradient(135deg, ${getStatusColor(
+              tripDetails.status
+            )}, ${getStatusColor(tripDetails.status)}dd)`,
           }}
         >
           <div className="flex items-center justify-between">
@@ -445,7 +376,8 @@ const DEMO_TRIP: TripDetail = {
               <StatusIcon className="w-6 h-6" />
               <div>
                 <p className="text-lg font-extrabold">
-                  {tripDetails.status.charAt(0).toUpperCase() + tripDetails.status.slice(1)}
+                  {tripDetails.status.charAt(0).toUpperCase() +
+                    tripDetails.status.slice(1)}
                 </p>
                 <p className="text-sm text-white/80">{tripDetails.route}</p>
               </div>
@@ -472,16 +404,22 @@ const DEMO_TRIP: TripDetail = {
             <div className="flex-1 flex justify-between items-center">
               <div>
                 <p className="font-bold text-gray-900">{tripDetails.from}</p>
-                <p className="text-sm text-slate-400">{formatTime(tripDetails.departureTime)}</p>
+                <p className="text-sm text-slate-400">
+                  {formatTime(tripDetails.departureTime)}
+                </p>
               </div>
               <div className="flex-1 mx-4 text-center">
                 <div className="h-px bg-slate-200 w-full" />
-                <p className="text-xs text-slate-400 mt-1">{tripDetails.duration}</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {tripDetails.duration}
+                </p>
                 <div className="h-px bg-slate-200 w-full" />
               </div>
               <div className="text-right">
                 <p className="font-bold text-gray-900">{tripDetails.to}</p>
-                <p className="text-sm text-slate-400">{formatTime(tripDetails.arrivalTime)}</p>
+                <p className="text-sm text-slate-400">
+                  {formatTime(tripDetails.arrivalTime)}
+                </p>
               </div>
             </div>
           </div>
@@ -498,28 +436,36 @@ const DEMO_TRIP: TripDetail = {
             <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-2">
               <Users className="w-5 h-5 text-indigo-600" />
             </div>
-            <p className="text-xl font-extrabold text-gray-900">{tripDetails.bookedSeats}</p>
+            <p className="text-xl font-extrabold text-gray-900">
+              {tripDetails.bookedSeats}
+            </p>
             <p className="text-xs text-slate-400 font-medium">Booked Seats</p>
           </div>
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 text-center">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-2">
-              <Armchair  className="w-5 h-5 text-emerald-600" />
+              <Armchair className="w-5 h-5 text-emerald-600" />
             </div>
-            <p className="text-xl font-extrabold text-gray-900">{tripDetails.availableSeats}</p>
+            <p className="text-xl font-extrabold text-gray-900">
+              {tripDetails.availableSeats}
+            </p>
             <p className="text-xs text-slate-400 font-medium">Available</p>
           </div>
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 text-center">
             <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center mx-auto mb-2">
               <Wallet className="w-5 h-5 text-amber-600" />
             </div>
-            <p className="text-xl font-extrabold text-gray-900">Rs. {tripDetails.earnings.total}</p>
+            <p className="text-xl font-extrabold text-gray-900">
+              Rs. {tripDetails.earnings.total}
+            </p>
             <p className="text-xs text-slate-400 font-medium">Total Earnings</p>
           </div>
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-slate-100/50 p-4 text-center">
             <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center mx-auto mb-2">
               <Bus className="w-5 h-5 text-purple-600" />
             </div>
-            <p className="text-xl font-extrabold text-gray-900">{tripDetails.totalSeats}</p>
+            <p className="text-xl font-extrabold text-gray-900">
+              {tripDetails.totalSeats}
+            </p>
             <p className="text-xs text-slate-400 font-medium">Total Seats</p>
           </div>
         </motion.div>
@@ -537,24 +483,35 @@ const DEMO_TRIP: TripDetail = {
               <Bus className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-900">{tripDetails.vehicle}</p>
-              <p className="text-sm text-slate-400">{tripDetails.vehicleNumber}</p>
+              <p className="font-semibold text-gray-900">
+                {tripDetails.vehicle}
+              </p>
+              <p className="text-sm text-slate-400">
+                {tripDetails.vehicleNumber}
+              </p>
             </div>
             <div className="bg-indigo-50 px-3 py-1 rounded-full">
-              <span className="text-xs font-semibold text-indigo-600">{tripDetails.vehicleType}</span>
+              <span className="text-xs font-semibold text-indigo-600">
+                {tripDetails.vehicleCategory}
+              </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
-            {tripDetails.amenities.map((amenity, index) => {
-              const Icon = getAmenityIcon(amenity);
-              return (
-                <span key={index} className="flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1 rounded-lg text-xs text-indigo-600 font-medium">
-                  <Icon className="w-3.5 h-3.5" />
-                  {amenity}
-                </span>
-              );
-            })}
-          </div>
+          {tripDetails.amenities.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100">
+              {tripDetails.amenities.map((amenity, index) => {
+                const Icon = getAmenityIcon(amenity);
+                return (
+                  <span
+                    key={index}
+                    className="flex items-center gap-1.5 bg-indigo-50/50 px-2.5 py-1 rounded-lg text-xs text-indigo-600 font-medium"
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {amenity}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
 
         {/* Driver Info */}
@@ -570,15 +527,24 @@ const DEMO_TRIP: TripDetail = {
               <User className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-900">{tripDetails.driver.name}</p>
+              <p className="font-semibold text-gray-900">
+                {tripDetails.driver.name}
+              </p>
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                <span className="text-sm font-semibold text-gray-700">{tripDetails.driver.rating}</span>
+                <span className="text-sm font-semibold text-gray-700">
+                  {tripDetails.driver.rating}
+                </span>
               </div>
             </div>
-            <button className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center hover:bg-indigo-100 transition-colors">
-              <Phone className="w-5 h-5 text-indigo-600" />
-            </button>
+            {tripDetails.driver.phone && (
+              <a
+                href={`tel:${tripDetails.driver.phone}`}
+                className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center hover:bg-indigo-100 transition-colors"
+              >
+                <Phone className="w-5 h-5 text-indigo-600" />
+              </a>
+            )}
           </div>
         </motion.div>
 
@@ -591,13 +557,15 @@ const DEMO_TRIP: TripDetail = {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-900">Passengers</h3>
-            <button
-              onClick={() => setShowPassengersModal(true)}
-              className="text-sm font-semibold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 transition-colors"
-            >
-              View All ({tripDetails.passengers.length})
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {tripDetails.passengers.length > 0 && (
+              <button
+                onClick={() => setShowPassengersModal(true)}
+                className="text-sm font-semibold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 transition-colors"
+              >
+                View All ({tripDetails.passengers.length})
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
           {tripDetails.passengers.slice(0, 3).map((passenger, index) => (
             <div
@@ -609,16 +577,22 @@ const DEMO_TRIP: TripDetail = {
               }}
             >
               <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-indigo-600">{index + 1}</span>
+                <span className="text-xs font-bold text-indigo-600">
+                  {index + 1}
+                </span>
               </div>
               <div className="flex-1">
                 <p className="font-medium text-gray-900">{passenger.name}</p>
-                <p className="text-sm text-slate-400">Seat {passenger.seatNumber}</p>
+                <p className="text-sm text-slate-400">
+                  Seat {passenger.seatNumber}
+                </p>
               </div>
-              <span className={cn(
-                "text-xs font-semibold px-2.5 py-0.5 rounded-full",
-                getPassengerStatusBgColor(passenger.status)
-              )}>
+              <span
+                className={cn(
+                  "text-xs font-semibold px-2.5 py-0.5 rounded-full",
+                  getPassengerStatusBgColor(passenger.status)
+                )}
+              >
                 {passenger.status.replace("_", " ").toUpperCase()}
               </span>
             </div>
@@ -634,7 +608,9 @@ const DEMO_TRIP: TripDetail = {
           {tripDetails.passengers.length === 0 && (
             <div className="text-center py-8">
               <Users className="w-12 h-12 text-slate-300 mx-auto" />
-              <p className="text-sm text-slate-400 mt-2">No passengers booked yet</p>
+              <p className="text-sm text-slate-400 mt-2">
+                No passengers booked yet
+              </p>
             </div>
           )}
         </motion.div>
@@ -648,21 +624,28 @@ const DEMO_TRIP: TripDetail = {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-900">Stops</h3>
-            <button
-              onClick={() => setShowStopsModal(true)}
-              className="text-sm font-semibold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 transition-colors"
-            >
-              View All
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            {tripDetails.stops.length > 0 && (
+              <button
+                onClick={() => setShowStopsModal(true)}
+                className="text-sm font-semibold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 transition-colors"
+              >
+                View All
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
           {tripDetails.stops.slice(0, 3).map((stop, index) => (
-            <div key={index} className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0">
+            <div
+              key={index}
+              className="flex items-center gap-3 py-2 border-b border-slate-100 last:border-0"
+            >
               <div className="flex flex-col items-center">
-                <div className={cn(
-                  "w-2.5 h-2.5 rounded-full",
-                  stop.type === "boarding" ? "bg-emerald-500" : "bg-red-500"
-                )} />
+                <div
+                  className={cn(
+                    "w-2.5 h-2.5 rounded-full",
+                    stop.type === "boarding" ? "bg-emerald-500" : "bg-red-500"
+                  )}
+                />
                 {index < tripDetails.stops.length - 1 && (
                   <div className="w-0.5 flex-1 bg-slate-200 min-h-[12px]" />
                 )}
@@ -671,12 +654,14 @@ const DEMO_TRIP: TripDetail = {
                 <p className="font-medium text-gray-900">{stop.name}</p>
                 <p className="text-sm text-slate-400">{stop.time}</p>
               </div>
-              <span className={cn(
-                "text-xs font-semibold px-2.5 py-0.5 rounded-full",
-                stop.type === "boarding"
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-red-50 text-red-500"
-              )}>
+              <span
+                className={cn(
+                  "text-xs font-semibold px-2.5 py-0.5 rounded-full",
+                  stop.type === "boarding"
+                    ? "bg-emerald-50 text-emerald-600"
+                    : "bg-red-50 text-red-500"
+                )}
+              >
                 {stop.type.toUpperCase()}
               </span>
             </div>
@@ -694,11 +679,15 @@ const DEMO_TRIP: TripDetail = {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Total Bookings</span>
-              <span className="font-semibold text-gray-900">Rs. {tripDetails.earnings.total}</span>
+              <span className="font-semibold text-gray-900">
+                Rs. {tripDetails.earnings.total}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Platform Fee</span>
-              <span className="font-semibold text-red-500">- Rs. {tripDetails.earnings.platformFee}</span>
+              <span className="font-semibold text-red-500">
+                - Rs. {tripDetails.earnings.platformFee}
+              </span>
             </div>
             <div className="border-t border-slate-200 pt-2 mt-2">
               <div className="flex justify-between">
@@ -712,7 +701,8 @@ const DEMO_TRIP: TripDetail = {
         </motion.div>
 
         {/* Action Buttons */}
-        {(tripDetails.status === "upcoming" || tripDetails.status === "active") && (
+        {(tripDetails.status === "upcoming" ||
+          tripDetails.status === "active") && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -731,10 +721,6 @@ const DEMO_TRIP: TripDetail = {
                 Complete Trip
               </button>
             )}
-            {/* <button className="flex-1 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl py-4 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all">
-              <XCircle className="w-5 h-5" />
-              Cancel Trip
-            </button> */}
           </motion.div>
         )}
       </main>
@@ -759,7 +745,9 @@ const DEMO_TRIP: TripDetail = {
             >
               <div className="p-5 border-b border-slate-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">Passengers</h3>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Passengers
+                  </h3>
                   <button
                     onClick={() => setShowPassengersModal(false)}
                     className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
@@ -783,16 +771,24 @@ const DEMO_TRIP: TripDetail = {
                         className="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 transition-colors"
                       >
                         <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                          <span className="text-sm font-bold text-indigo-600">{index + 1}</span>
+                          <span className="text-sm font-bold text-indigo-600">
+                            {index + 1}
+                          </span>
                         </div>
                         <div className="flex-1 text-left">
-                          <p className="font-semibold text-gray-900">{passenger.name}</p>
-                          <p className="text-sm text-slate-400">Seat {passenger.seatNumber}</p>
+                          <p className="font-semibold text-gray-900">
+                            {passenger.name}
+                          </p>
+                          <p className="text-sm text-slate-400">
+                            Seat {passenger.seatNumber}
+                          </p>
                         </div>
-                        <span className={cn(
-                          "text-xs font-semibold px-2.5 py-0.5 rounded-full",
-                          getPassengerStatusBgColor(passenger.status)
-                        )}>
+                        <span
+                          className={cn(
+                            "text-xs font-semibold px-2.5 py-0.5 rounded-full",
+                            getPassengerStatusBgColor(passenger.status)
+                          )}
+                        >
                           {passenger.status.replace("_", " ").toUpperCase()}
                         </span>
                       </button>
@@ -801,7 +797,9 @@ const DEMO_TRIP: TripDetail = {
                 ) : (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 text-slate-300 mx-auto" />
-                    <p className="text-sm text-slate-400 mt-2">No passengers yet</p>
+                    <p className="text-sm text-slate-400 mt-2">
+                      No passengers yet
+                    </p>
                   </div>
                 )}
               </div>
@@ -830,7 +828,9 @@ const DEMO_TRIP: TripDetail = {
             >
               <div className="p-5 border-b border-slate-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">All Stops</h3>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    All Stops
+                  </h3>
                   <button
                     onClick={() => setShowStopsModal(false)}
                     className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
@@ -842,12 +842,19 @@ const DEMO_TRIP: TripDetail = {
 
               <div className="p-5 overflow-y-auto max-h-[60vh]">
                 {tripDetails.stops.map((stop, index) => (
-                  <div key={index} className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0"
+                  >
                     <div className="flex flex-col items-center">
-                      <div className={cn(
-                        "w-2.5 h-2.5 rounded-full",
-                        stop.type === "boarding" ? "bg-emerald-500" : "bg-red-500"
-                      )} />
+                      <div
+                        className={cn(
+                          "w-2.5 h-2.5 rounded-full",
+                          stop.type === "boarding"
+                            ? "bg-emerald-500"
+                            : "bg-red-500"
+                        )}
+                      />
                       {index < tripDetails.stops.length - 1 && (
                         <div className="w-0.5 flex-1 bg-slate-200 min-h-[12px]" />
                       )}
@@ -856,12 +863,14 @@ const DEMO_TRIP: TripDetail = {
                       <p className="font-medium text-gray-900">{stop.name}</p>
                       <p className="text-sm text-slate-400">{stop.time}</p>
                     </div>
-                    <span className={cn(
-                      "text-xs font-semibold px-2.5 py-0.5 rounded-full",
-                      stop.type === "boarding"
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-red-50 text-red-500"
-                    )}>
+                    <span
+                      className={cn(
+                        "text-xs font-semibold px-2.5 py-0.5 rounded-full",
+                        stop.type === "boarding"
+                          ? "bg-emerald-50 text-emerald-600"
+                          : "bg-red-50 text-red-500"
+                      )}
+                    >
                       {stop.type.toUpperCase()}
                     </span>
                   </div>
@@ -890,7 +899,9 @@ const DEMO_TRIP: TripDetail = {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Passenger Details</h3>
+                <h3 className="text-xl font-bold text-gray-900">
+                  Passenger Details
+                </h3>
                 <button
                   onClick={() => setShowPassengerDetailModal(false)}
                   className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
@@ -903,39 +914,58 @@ const DEMO_TRIP: TripDetail = {
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/20">
                   <User className="w-10 h-10 text-white" />
                 </div>
-                <h4 className="text-xl font-bold text-gray-900 mt-3">{selectedPassenger.name}</h4>
-                <p className="text-sm text-slate-400">Booking #{selectedPassenger.bookingId}</p>
+                <h4 className="text-xl font-bold text-gray-900 mt-3">
+                  {selectedPassenger.name}
+                </h4>
+                <p className="text-sm text-slate-400">
+                  Booking #{selectedPassenger.bookingId}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3 mt-4">
                 <div className="bg-slate-50/80 rounded-xl p-3 text-center">
-                  <p className="text-xs text-slate-400 font-medium">Seat Number</p>
-                  <p className="font-bold text-gray-900">{selectedPassenger.seatNumber}</p>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Seat Number
+                  </p>
+                  <p className="font-bold text-gray-900">
+                    {selectedPassenger.seatNumber}
+                  </p>
                 </div>
                 <div className="bg-slate-50/80 rounded-xl p-3 text-center">
                   <p className="text-xs text-slate-400 font-medium">Status</p>
-                  <span className={cn(
-                    "text-xs font-semibold px-2 py-0.5 rounded-full inline-block",
-                    getPassengerStatusBgColor(selectedPassenger.status)
-                  )}>
+                  <span
+                    className={cn(
+                      "text-xs font-semibold px-2 py-0.5 rounded-full inline-block",
+                      getPassengerStatusBgColor(selectedPassenger.status)
+                    )}
+                  >
                     {selectedPassenger.status.replace("_", " ").toUpperCase()}
                   </span>
                 </div>
                 <div className="bg-slate-50/80 rounded-xl p-3 text-center">
                   <p className="text-xs text-slate-400 font-medium">Phone</p>
-                  <p className="font-semibold text-gray-900">{selectedPassenger.phone || "N/A"}</p>
+                  <p className="font-semibold text-gray-900">
+                    {selectedPassenger.phone || "N/A"}
+                  </p>
                 </div>
                 <div className="bg-slate-50/80 rounded-xl p-3 text-center">
                   <p className="text-xs text-slate-400 font-medium">Email</p>
-                  <p className="font-semibold text-gray-900">{selectedPassenger.email || "N/A"}</p>
+                  <p className="font-semibold text-gray-900">
+                    {selectedPassenger.email || "N/A"}
+                  </p>
                 </div>
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
-                  <Phone className="w-4 h-4" />
-                  Call
-                </button>
+                {selectedPassenger.phone && (
+                  <a
+                    href={`tel:${selectedPassenger.phone}`}
+                    className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Call
+                  </a>
+                )}
                 <button className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl py-3 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all">
                   <CheckCircle className="w-4 h-4" />
                   Check In
@@ -949,13 +979,16 @@ const DEMO_TRIP: TripDetail = {
   );
 }
 
-
 export default function TripDetailsPage() {
-return (
-    <>
-    <Suspense fallback={<h1>Loading....</h1>}>
-      <TripDetailsPageComp/>
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        </div>
+      }
+    >
+      <TripDetailsPageComp />
     </Suspense>
-    </>
-)
+  );
 }
