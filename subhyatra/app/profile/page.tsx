@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import logo from "@/public/eticketlogo.jpeg";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -228,7 +229,7 @@ export default function ProfilePage() {
       setUser(DEMO_USER);
 
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/");
       }
     }
@@ -367,7 +368,7 @@ export default function ProfilePage() {
         router.push("/");
       } catch (error) {
         console.error("Logout error:", error);
-        alert("Failed to logout. Please try again.");
+        toast.error("Failed to logout. Please try again.");
       }
     }
   };

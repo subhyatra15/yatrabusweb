@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
+import toast, { Toaster } from "react-hot-toast";
 
 import LayoutWrapper from "@/components/LayoutWrapper";
 
@@ -28,9 +28,9 @@ export const metadata: Metadata = {
   title: "YatraBus — Book Bus Tickets Across Nepal",
   description:
     "Search, compare and book bus tickets across Nepal. Real seat maps, instant e-tickets, safe यात्रा.",
-  icons:{
-    icon:'/eticketlogo.png'
-  }
+  icons: {
+    icon: "/eticketlogo.png",
+  },
 };
 
 export default function RootLayout({
@@ -38,8 +38,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-
-
   return (
     <html
       lang="en"
@@ -47,7 +45,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <LayoutWrapper>
-        {children}
+          {children}
+          <Toaster position="top-center" />
         </LayoutWrapper>
       </body>
     </html>

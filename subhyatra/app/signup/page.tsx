@@ -38,50 +38,45 @@ export default function RegisterPage() {
 
   const validateForm = () => {
     if (!fullName.trim()) {
-      alert("Validation Error", "Please enter your full name");
+      toast.error("Please enter your full name");
       return false;
     }
     if (!email.trim()) {
-      alert("Validation Error", "Please enter your email address");
+      toast.error("Please enter your email address");
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      alert("Validation Error", "Please enter a valid email address");
+      toast.error("Please enter a valid email address");
       return false;
     }
     if (!phoneNumber.trim()) {
-      alert("Validation Error", "Please enter your phone number");
+      toast.error("Please enter your phone number");
       return false;
     }
     if (phoneNumber.length < 10) {
-      alert("Validation Error", "Please enter a valid phone number");
+      toast.error("Please enter a valid phone number");
       return false;
     }
     if (!password.trim()) {
-      alert("Validation Error", "Please create a password");
+      toast.error("Please create a password");
       return false;
     }
     if (password.length < 6) {
-      alert("Validation Error", "Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters");
       return false;
     }
     if (password !== confirmPassword) {
-      alert("Validation Error", "Passwords do not match");
+      toast.error("Passwords do not match");
       return false;
     }
     if (!agreeTerms) {
-      alert("Validation Error", "Please agree to the Terms & Conditions");
+      toast.error("Please agree to the Terms & Conditions");
       return false;
     }
     return true;
   };
 
-  // Custom alert function for web
-  const alert = (title: string, message: string) => {
-    // You can replace this with a toast notification library like react-hot-toast
-    window.alert(`${title}\n\n${message}`);
-  };
 
   const handleRegister = async () => {
     if (!validateForm()) return;
@@ -104,16 +99,13 @@ export default function RegisterPage() {
       });
 
       if (response.data && response.data.success) {
-        alert(
+        toast.success(
           "Registration Successful! 🎉",
           "Your account has been created successfully. Welcome to SubhYatra!"
         );
         router.push("/");
       } else {
-        alert(
-          "Registration Failed",
-          response.data.message || "Something went wrong. Please try again."
-        );
+        toast.error(`Registration Failed,${response.data.message}`);
       }
     } catch (error: any) {
       console.error("Registration Error:", error);
@@ -123,27 +115,26 @@ export default function RegisterPage() {
         const message = error.response.data?.message || error.response.data?.error || "Server error occurred";
 
         if (status === 409) {
-          alert(
-            "Registration Failed",
+          toast.error(
             "This email or phone number is already registered. Please login or use different credentials."
           );
         } else if (status === 400) {
-          alert("Registration Failed", message);
+          toast.error(message);
         } else if (status === 500) {
-          alert(
+          toast.error(
             "Server Error",
             "Our servers are experiencing issues. Please try again later."
           );
         } else {
-          alert("Registration Failed", message);
+          toast.error(message);
         }
       } else if (error.request) {
-        alert(
+        toast.error(
           "Network Error",
           "Unable to connect to the server. Please check your internet connection and try again."
         );
       } else {
-        alert(
+        toast.error(
           "Error",
           error.message || "An unexpected error occurred. Please try again."
         );

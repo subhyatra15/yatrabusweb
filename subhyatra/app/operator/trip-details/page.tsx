@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -229,13 +230,13 @@ function TripDetailsPageComp() {
         setTripDetails(null);
       }
     } catch (error: any) {
-      console.error("Error fetching trip details:", error);
+      console.error(error);
 
       const status = error?.response?.status;
       const serverMsg = error?.response?.data?.error;
 
       if (status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
         return;
       }

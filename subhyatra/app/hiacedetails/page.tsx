@@ -36,6 +36,7 @@ const HiaceDetailsMap = dynamic(
   { ssr: false }
 );
 import HiaceDetailsDriverInfo from "@/components/HiaceDetailsDriverInfo";
+import toast from "react-hot-toast";
 
 // ---------------- Types ----------------
 interface LayoutCell {
@@ -480,7 +481,7 @@ function HiaceDetailsPageComp() {
           Number(selectedById) === Number(myId);
 
         if (isMine) {
-          // It's YOUR seat — sync state, no alert
+          // It's YOUR seat — sync state, no toast.error
           console.log("Seat is already yours — syncing state.");
           setSeats((prev) =>
             prev.map((row) =>
@@ -511,7 +512,7 @@ function HiaceDetailsPageComp() {
         }
 
         // Genuinely someone else
-        alert(
+        toast.error(
           `Seat Already Selected\nThis seat is already selected by ${
             selectedBy?.name || "another user"
           }`
@@ -519,7 +520,7 @@ function HiaceDetailsPageComp() {
         return false;
       }
 
-      alert("Failed to select seat. Please try again.");
+      toast.error("Failed to select seat. Please try again.");
       return false;
     }
   };
@@ -547,7 +548,7 @@ function HiaceDetailsPageComp() {
       return true;
     } catch (error: any) {
       console.error("Error releasing seat:", error);
-      alert("Failed to release seat. Please try again.");
+      toast.error("Failed to release seat. Please try again.");
       return false;
     }
   };
@@ -562,7 +563,7 @@ function HiaceDetailsPageComp() {
 
     // Booked permanently
     if (seat.booked || (!seat.available && !seat.selected_by)) {
-      alert("This seat is already booked.");
+      toast.error("This seat is already booked.");
       return;
     }
 
@@ -572,7 +573,7 @@ function HiaceDetailsPageComp() {
       myId != null &&
       Number(seat.selected_by) !== Number(myId)
     ) {
-      alert(
+      toast.error(
         `This seat is currently being selected by ${
           seat.selected_by_name || "another user"
         }`
@@ -773,12 +774,12 @@ function HiaceDetailsPageComp() {
     } catch (error: any) {
       console.error("Error fetching hiace details:", error);
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       } else if (error.response?.status === 404) {
-        alert("Hiace schedule not found.");
+        toast.error("Hiace schedule not found.");
       } else {
-        alert(
+        toast.error(
           error.response?.data?.message || "Failed to fetch hiace details."
         );
       }
@@ -829,7 +830,7 @@ function HiaceDetailsPageComp() {
   // ---------- Booking ----------
   const handleConfirmBooking = async () => {
     if (selectedSeats.length === 0) {
-      alert("Please select at least one seat.");
+      toast.error("Please select at least one seat.");
       return;
     }
 
@@ -869,10 +870,10 @@ function HiaceDetailsPageComp() {
       const message =
         error.response?.data?.message || "Failed to book seats.";
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       } else {
-        alert(message);
+        toast.error(message);
       }
     } finally {
       setIsBooking(false);

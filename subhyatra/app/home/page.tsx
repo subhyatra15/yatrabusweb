@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import logo from "@/public/eticketlogo.jpeg";
 import banner1 from "@/public/banner1.jpeg";
 import scripiobanner from "@/public/scripiobanner.jpeg";
+import toast from "react-hot-toast";
 
 // Types
 interface City {
@@ -401,12 +402,12 @@ export default function HomePage() {
   // Handle search
   const handleSearch = () => {
     if (!from || !to) {
-      alert("Please select both departure and destination cities.");
+      toast.error("Please select both departure and destination cities.");
       return;
     }
 
     if (from === to) {
-      alert("Departure and destination cities cannot be the same.");
+      toast.error("Departure and destination cities cannot be the same.");
       return;
     }
 

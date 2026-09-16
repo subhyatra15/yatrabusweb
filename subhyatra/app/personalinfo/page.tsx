@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import logo from "@/public/eticketlogo.jpeg";
+import toast from "react-hot-toast";
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -176,7 +177,7 @@ export default function PersonalInfoPage() {
       });
 
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       }
     } finally {
@@ -217,7 +218,7 @@ export default function PersonalInfoPage() {
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        alert("Please login to update profile");
+        toast.error("Please login to update profile");
         return;
       }
 
@@ -249,15 +250,15 @@ export default function PersonalInfoPage() {
       if (response.data) {
         setUserData(tempData);
         setIsEditing(false);
-        alert("Profile information updated successfully!");
+        toast.success("Profile information updated successfully!");
       }
     } catch (error: any) {
       console.error("Error updating profile:", error);
       
       if (error.response?.data?.message) {
-        alert(error.response.data.message);
+        toast.error(error.response.data.message);
       } else {
-        alert("Failed to update profile. Please try again.");
+        toast.error("Failed to update profile. Please try again.");
       }
     } finally {
       setLoading(false);

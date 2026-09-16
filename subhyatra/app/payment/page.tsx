@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -257,13 +258,14 @@ function PaymentPageComp() {
       setIsProcessing(true);
       const token = localStorage.getItem("accessToken");
       if (!token) {
-        alert("Please login to continue");
+        toast.error("Please login to continue");
         return;
       }
       if (!booking_id) {
-        alert("Booking ID not found");
+        toast.error("Booking ID not found");
         return;
       }
+     
 
       const response =
         vehicleType === "bus"
@@ -343,7 +345,7 @@ function PaymentPageComp() {
       }
     } catch (error: any) {
       console.error("eSewa payment error:", error);
-      alert(
+      toast.error(
         error.response?.data?.message ||
           "Failed to initiate payment. Please try again.",
       );
@@ -357,11 +359,11 @@ function PaymentPageComp() {
       setIsProcessing(true);
       const token = localStorage.getItem("accessToken");
       if (!token) {
-        alert("Please login to continue");
+        toast.error("Please login to continue");
         return;
       }
       if (!booking_id) {
-        alert("Booking ID not found");
+        toast.error("Booking ID not found");
         return;
       }
 
@@ -387,7 +389,7 @@ function PaymentPageComp() {
       if (!newWindow) window.location.href = d.payment_url;
     } catch (error: any) {
       console.error("Khalti payment error:", error);
-      alert(
+      toast.error(
         error.response?.data?.message ||
           "Failed to initiate payment. Please try again.",
       );
@@ -407,11 +409,11 @@ function PaymentPageComp() {
 
   const handlePayment = async () => {
     if (!bookingId) {
-      alert("Booking ID not found. Please try again.");
+      toast.error("Booking ID not found. Please try again.");
       return;
     }
     if (!isBookingValid) {
-      alert(
+      toast.error(
         `This booking is ${bookingData?.bookingStatus?.toLowerCase()}. Payment cannot be processed.`,
       );
       return;

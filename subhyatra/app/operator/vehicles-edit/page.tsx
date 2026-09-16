@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -262,7 +263,7 @@ function EditVehiclesPageComp() {
       useDemoData();
 
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       }
     } finally {
@@ -283,7 +284,7 @@ function EditVehiclesPageComp() {
     if (!vehicleData) return;
 
     if (usingDemoData) {
-      alert("Demo Mode. Changes cannot be saved.");
+      toast.error("Demo Mode. Changes cannot be saved.");
       return;
     }
 
@@ -292,7 +293,7 @@ function EditVehiclesPageComp() {
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        alert("Please login to update vehicle");
+        toast.error("Please login to update vehicle");
         return;
       }
 
@@ -316,12 +317,12 @@ function EditVehiclesPageComp() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      alert("Vehicle updated successfully!");
+      toast.success("Vehicle updated successfully!");
       setIsEditing(false);
       fetchVehicleDetails();
     } catch (error: any) {
       console.error("Error updating vehicle:", error);
-      alert(error.response?.data?.message || "Failed to update vehicle");
+      toast.error(error.response?.data?.message || "Failed to update vehicle");
     } finally {
       setSubmitting(false);
     }
@@ -329,7 +330,7 @@ function EditVehiclesPageComp() {
 
   const handleDelete = async () => {
     if (usingDemoData) {
-      alert("Demo Mode. Cannot delete.");
+      toast.error("Demo Mode. Cannot delete.");
       return;
     }
 
@@ -338,7 +339,7 @@ function EditVehiclesPageComp() {
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        alert("Please login to delete vehicle");
+        toast.error("Please login to delete vehicle");
         return;
       }
 
@@ -350,12 +351,12 @@ function EditVehiclesPageComp() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      alert("Vehicle deleted successfully!");
+      toast.success("Vehicle deleted successfully!");
       setShowDeleteModal(false);
       router.back();
     } catch (error: any) {
       console.error("Error deleting vehicle:", error);
-      alert(error.response?.data?.message || "Failed to delete vehicle");
+      toast.error(error.response?.data?.message || "Failed to delete vehicle");
     } finally {
       setSubmitting(false);
     }
@@ -397,14 +398,14 @@ function EditVehiclesPageComp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <Bus className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
@@ -417,14 +418,14 @@ function EditVehiclesPageComp() {
 
   if (!vehicleData) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-10 h-10 text-red-400" />
         </div>
         <h3 className="text-xl font-bold text-gray-900 mt-4">Vehicle not found</h3>
         <button
           onClick={() => router.back()}
-          className="mt-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+          className="mt-4 bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
         >
           Go Back
         </button>
@@ -433,7 +434,7 @@ function EditVehiclesPageComp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -460,7 +461,7 @@ function EditVehiclesPageComp() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsEditing(true)}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                className="bg-linear-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
               >
                 <Edit className="w-4 h-4" />
                 Edit
@@ -478,7 +479,7 @@ function EditVehiclesPageComp() {
                   whileTap={{ scale: 0.95 }}
                   onClick={handleUpdate}
                   disabled={submitting}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-50"
+                  className="bg-linear-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-50"
                 >
                   {submitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -506,7 +507,7 @@ function EditVehiclesPageComp() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative rounded-2xl overflow-hidden mb-4 h-48 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg"
+          className="relative rounded-2xl overflow-hidden mb-4 h-48 bg-linear-to-r from-indigo-600 to-purple-600 shadow-lg"
         >
           {vehicleData.vehicleImage ? (
             <Image
@@ -524,7 +525,7 @@ function EditVehiclesPageComp() {
           {isEditing && (
             <button
               className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors"
-              onClick={() => alert("Image picker would open here")}
+              onClick={() => toast.error("Image picker would open here")}
             >
               <Camera className="w-5 h-5 text-white" />
             </button>
@@ -794,7 +795,7 @@ function EditVehiclesPageComp() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
             onClick={() => setShowDeleteModal(true)}
-            className="w-full bg-gradient-to-r from-red-600 to-red-500 rounded-2xl py-4 flex items-center justify-center gap-3 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all"
+            className="w-full bg-linear-to-r from-red-600 to-red-500 rounded-2xl py-4 flex items-center justify-center gap-3 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all"
           >
             <Trash2 className="w-5 h-5 text-white" />
             <span className="font-bold text-white text-base">Delete Vehicle</span>
@@ -829,7 +830,7 @@ function EditVehiclesPageComp() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-red-500 to-red-600 flex items-center justify-center mx-auto shadow-lg shadow-red-500/25 mb-4">
+                <div className="w-16 h-16 rounded-full bg-linear-to-r from-red-500 to-red-600 flex items-center justify-center mx-auto shadow-lg shadow-red-500/25 mb-4">
                   <AlertCircle className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900">Delete Vehicle</h3>
@@ -846,7 +847,7 @@ function EditVehiclesPageComp() {
                   <button
                     onClick={handleDelete}
                     disabled={submitting}
-                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-500 text-white font-semibold shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all disabled:opacity-50"
+                    className="flex-1 py-3 rounded-xl bg-linear-to-r from-red-600 to-red-500 text-white font-semibold shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all disabled:opacity-50"
                   >
                     {submitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Delete"}
                   </button>
@@ -923,7 +924,7 @@ function EditVehiclesPageComp() {
                   </button>
                   <button
                     onClick={addCustomAmenity}
-                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                    className="flex-1 py-3 rounded-xl bg-linear-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
                   >
                     Add
                   </button>

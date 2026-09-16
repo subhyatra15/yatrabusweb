@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -683,12 +684,12 @@ export default function DriverVehiclesPage() {
 
     const handleAddVehicle = async () => {
       if (!newVehicle.name || !newVehicle.number || !newVehicle.totalSeats) {
-        alert("Please fill in all required fields");
+        toast.error("Please fill in all required fields");
         return;
       }
 
       if (usingDemoData) {
-        alert("Demo Mode. Cannot add vehicle in demo mode.");
+        toast.error("Demo Mode. Cannot add vehicle in demo mode.");
         return;
       }
 
@@ -725,7 +726,7 @@ export default function DriverVehiclesPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        alert("Vehicle added successfully");
+        toast.success("Vehicle added successfully");
         setShowAddModal(false);
         setNewVehicle({
           name: "",
@@ -738,7 +739,7 @@ export default function DriverVehiclesPage() {
         fetchVehicles();
       } catch (error) {
         console.error("Error adding vehicle:", error);
-        alert("Failed to add vehicle");
+        toast.error("Failed to add vehicle");
       }
     };
 

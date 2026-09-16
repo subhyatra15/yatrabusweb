@@ -84,7 +84,7 @@ function SeatManagementPageComp() {
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        alert("Please login again");
+        toast.error("Please login again");
         return;
       }
 
@@ -110,7 +110,7 @@ function SeatManagementPageComp() {
         setSeats([]);
         filterSeats([]);
       } else {
-        alert("Failed to fetch seats");
+        toast.error("Failed to fetch seats");
       }
     } finally {
       setLoading(false);
@@ -148,7 +148,7 @@ function SeatManagementPageComp() {
 
   const handleAddSeat = async () => {
     if (!newSeat.seat_number) {
-      alert("Please enter seat number");
+      toast.error("Please enter seat number");
       return;
     }
 
@@ -178,19 +178,19 @@ function SeatManagementPageComp() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      alert("Seat added successfully");
+      toast.success("Seat added successfully");
       setShowAddModal(false);
       resetForm();
       fetchSeats();
     } catch (error: any) {
       console.error("Error adding seat:", error);
-      alert(error.response?.data?.message || "Failed to add seat");
+      toast.error(error.response?.data?.message || "Failed to add seat");
     }
   };
 
   const handleEditSeat = async () => {
     if (!editingSeat || !editingSeat.seat_number) {
-      alert("Please enter seat number");
+      toast.error("Please enter seat number");
       return;
     }
 
@@ -215,13 +215,13 @@ function SeatManagementPageComp() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      alert("Seat updated successfully");
+      toast.success("Seat updated successfully");
       setShowAddModal(false);
       resetForm();
       fetchSeats();
     } catch (error: any) {
       console.error("Error updating seat:", error);
-      alert(error.response?.data?.message || "Failed to update seat");
+      toast.error(error.response?.data?.message || "Failed to update seat");
     }
   };
 
@@ -239,11 +239,11 @@ function SeatManagementPageComp() {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          alert("Seat deleted successfully");
+          toast.success("Seat deleted successfully");
           fetchSeats();
         } catch (error) {
           console.error("Error deleting seat:", error);
-          alert("Failed to delete seat");
+          toast.error("Failed to delete seat");
         }
       })();
     }
@@ -657,7 +657,7 @@ function SeatManagementPageComp() {
 
                 <button
                   onClick={editingSeat ? handleEditSeat : handleAddSeat}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+                  className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
                 >
                   {editingSeat ? "Update Seat" : "Add Seat"}
                 </button>

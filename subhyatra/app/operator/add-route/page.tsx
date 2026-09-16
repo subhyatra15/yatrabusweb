@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -528,7 +529,7 @@ function AddRoutePageComp() {
       }
     } catch (error) {
       console.error("Error fetching routes:", error);
-      alert("Failed to fetch routes");
+      toast.error("Failed to fetch routes");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -548,7 +549,7 @@ function AddRoutePageComp() {
   // Stop functions
   const addStop = useCallback(() => {
     if (!tempStop.cityId || !tempStop.city) {
-      alert("Please select a city");
+      toast.error("Please select a city");
       return;
     }
     if (editingStop) {
@@ -594,11 +595,11 @@ function AddRoutePageComp() {
   // Fare functions
   const addFare = useCallback(() => {
     if (!tempFare.fromStopId || !tempFare.toStopId || !tempFare.fare) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
     if (tempFare.fromStopId === tempFare.toStopId) {
-      alert("From and To stops cannot be the same");
+      toast.error("From and To stops cannot be the same");
       return;
     }
     if (editingFare) {
@@ -679,19 +680,19 @@ function AddRoutePageComp() {
 
   const handleSubmit = useCallback(async () => {
     if (!selectedSourceCity || !selectedDestCity) {
-      alert("Please select source and destination cities");
+      toast.error("Please select source and destination cities");
       return;
     }
     if (selectedSourceCity === selectedDestCity) {
-      alert("Source and destination cannot be the same");
+      toast.error("Source and destination cannot be the same");
       return;
     }
     if (stops.length < 2) {
-      alert("Please add at least 2 stops");
+      toast.error("Please add at least 2 stops");
       return;
     }
     if (fares.length === 0) {
-      alert("Please add at least one fare");
+      toast.error("Please add at least one fare");
       return;
     }
 
@@ -733,7 +734,7 @@ function AddRoutePageComp() {
             Authorization: `Bearer ${token}`,
           },
         });
-        alert("Route updated successfully!");
+        toast.success("Route updated successfully!");
       } else {
         await axios.post(endpoint, routeData, {
           headers: {
@@ -741,7 +742,7 @@ function AddRoutePageComp() {
             Authorization: `Bearer ${token}`,
           },
         });
-        alert("Route created successfully!");
+        toast.success("Route created successfully!");
       }
 
       resetForm();
@@ -749,7 +750,7 @@ function AddRoutePageComp() {
       fetchRoutes();
     } catch (error: any) {
       console.error("Error saving route:", error);
-      alert(error.response?.data?.message || "Failed to save route");
+      toast.error(error.response?.data?.message || "Failed to save route");
     } finally {
       setSubmitting(false);
     }
@@ -783,11 +784,11 @@ function AddRoutePageComp() {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          alert("Route deleted successfully");
+          toast.error("Route deleted successfully");
           fetchRoutes();
         } catch (error) {
           console.error("Error deleting route:", error);
-          alert("Failed to delete route");
+          toast.error("Failed to delete route");
         }
       })();
     }

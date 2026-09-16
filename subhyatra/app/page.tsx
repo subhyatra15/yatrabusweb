@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
+
 
 // Get API URL from environment variables
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -55,13 +57,12 @@ export default function LoginPage() {
               router.replace(user.role === "P" ? "/home" : "/operator");
               return;
             } else {
-              // Token is invalid, clear storage
               localStorage.removeItem("accessToken");
               localStorage.removeItem("refreshToken");
               localStorage.removeItem("userData");
             }
           } catch (error) {
-            // Token verification failed, clear storage
+
             localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
             localStorage.removeItem("userData");
@@ -79,15 +80,15 @@ export default function LoginPage() {
 
   const validateForm = () => {
     if (!phoneNumber.trim()) {
-      alert("Validation Error", "Please enter your phone number");
+      toast.error( "Please enter your phone number");
       return false;
     }
     if (phoneNumber.length < 10) {
-      alert("Validation Error", "Please enter a valid phone number");
+      toast.error("Please enter a valid phone number");
       return false;
     }
     if (!password.trim()) {
-      alert("Validation Error", "Please enter your password");
+      toast.error("Please enter your password");
       return false;
     }
     return true;
@@ -130,13 +131,10 @@ export default function LoginPage() {
           );
         }
 
-        alert("Login Successful! 🎉", "Welcome back to SubhYatra!");
+        toast.success("Login Successful! 🎉", "Welcome back to SubhYatra!");
         router.push(response.data.user.role === "P" ? "/home" : "/operator");
       } else {
-        alert(
-          "Login Failed",
-          response.data.message || "Invalid credentials. Please try again."
-        );
+        toast.error(`Login Failed,${response.data.message}`);
       }
     } catch (error: any) {
       console.error("Login Error:", error);
@@ -149,32 +147,32 @@ export default function LoginPage() {
           "Server error occurred";
 
         if (status === 401) {
-          alert(
+          toast.error(
             "Login Failed",
             "Invalid phone number or password. Please check your credentials and try again."
           );
         } else if (status === 404) {
-          alert(
+          toast.error(
             "Login Failed",
             "Account not found. Please register first or check your phone number."
           );
         } else if (status === 400) {
-          alert("Login Failed", message);
+          toast.error("Login Failed", message);
         } else if (status === 500) {
-          alert(
+          toast.error(
             "Server Error",
             "Our servers are experiencing issues. Please try again later."
           );
         } else {
-          alert("Login Failed", message);
+          toast.error("Login Failed", message);
         }
       } else if (error.request) {
-        alert(
+        toast.error(
           "Network Error",
           "Unable to connect to the server. Please check your internet connection and try again."
         );
       } else {
-        alert(
+        toast.error(
           "Error",
           error.message || "An unexpected error occurred. Please try again."
         );

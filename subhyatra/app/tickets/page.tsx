@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import { QRCodeCanvas } from "qrcode.react";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -559,7 +560,7 @@ const QRCodeModal = ({
         });
       } else {
         await navigator.clipboard.writeText(shareMessage);
-        alert("Booking details copied to clipboard!");
+        toast.error("Booking details copied to clipboard!");
       }
     } catch (error) {
       console.error("Error sharing:", error);
@@ -1006,13 +1007,13 @@ export default function BookingsPage() {
         setSelectedBooking(booking);
         setShowQRModal(true);
       } else {
-        alert("This booking doesn't have a QR code token.");
+        toast.error("This booking doesn't have a QR code token.");
       }
     } else if (booking.bookingStatus === "PENDING") {
       if (booking.expiredAt) {
         const now = new Date();
         if (now > new Date(booking.expiredAt)) {
-          alert("This booking has expired. Please create a new booking.");
+          toast.error("This booking has expired. Please create a new booking.");
           fetchBookings();
           return;
         }
@@ -1020,13 +1021,13 @@ export default function BookingsPage() {
       setPendingBooking(booking);
       setShowPendingModal(true);
     } else {
-      alert(`This booking is ${booking.bookingStatus?.toLowerCase()}.`);
+      toast.error(`This booking is ${booking.bookingStatus?.toLowerCase()}.`);
     }
   };
 
   const handleShowQR = (booking: TransformedBooking) => {
     if (!booking.qrToken) {
-      alert("This booking doesn't have a QR code token.");
+      toast.error("This booking doesn't have a QR code token.");
       return;
     }
     if (
@@ -1036,7 +1037,7 @@ export default function BookingsPage() {
       setSelectedBooking(booking);
       setShowQRModal(true);
     } else {
-      alert(
+      toast.error(
         `QR code is only available for confirmed bookings. Current status: ${booking.bookingStatus}`
       );
     }

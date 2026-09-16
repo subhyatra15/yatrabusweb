@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -388,12 +389,12 @@ function ScheduleTripPageComp() {
 
   const handleAddSchedule = async () => {
     if (!selectedRoute || !selectedVehicle) {
-      alert("Please select both route and vehicle");
+      toast.error("Please select both route and vehicle");
       return;
     }
 
     if (usingDemoData) {
-      alert("Demo Mode. Schedule will not be saved.");
+      toast.error("Demo Mode. Schedule will not be saved.");
       setShowAddModal(false);
       resetForm();
       return;
@@ -435,7 +436,7 @@ function ScheduleTripPageComp() {
         },
       });
 
-      alert("Schedule added successfully!");
+      toast.success("Schedule added successfully!");
       setShowAddModal(false);
       resetForm();
       fetchData();
@@ -452,7 +453,7 @@ function ScheduleTripPageComp() {
         errorMessage = Object.values(errors).flat().join("\n");
       }
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

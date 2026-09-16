@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
+import toast from "react-hot-toast";
 
 // Dynamically import Leaflet map components
 const MapContainer = dynamic(
@@ -170,7 +171,7 @@ export default function DriverLocationPage() {
       const token = localStorage.getItem("accessToken");
 
       if (!token) {
-        alert("Please login again");
+        toast.error("Please login again");
         return;
       }
 
@@ -191,10 +192,10 @@ export default function DriverLocationPage() {
     } catch (error: any) {
       console.error("Error fetching buses:", error);
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       } else {
-        alert("Failed to fetch buses. Please try again.");
+        toast.error("Failed to fetch buses. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -347,12 +348,12 @@ export default function DriverLocationPage() {
   // Start tracking
   const startTracking = async () => {
     if (!selectedBus) {
-      alert("Please select a bus first");
+      toast.error("Please select a bus first");
       return;
     }
 
     if (!locationPermission) {
-      alert("Location permission not granted");
+      toast.error("Location permission not granted");
       return;
     }
 
@@ -420,7 +421,7 @@ export default function DriverLocationPage() {
       );
     }
 
-    alert(`Tracking started for ${selectedBus.bus_name}`);
+    toast.error(`Tracking started for ${selectedBus.bus_name}`);
   };
 
   // Stop tracking
@@ -443,7 +444,7 @@ export default function DriverLocationPage() {
       wsRef.current = null;
     }
 
-    alert("Tracking stopped");
+    toast.error("Tracking stopped");
   };
 
   // Toggle tracking

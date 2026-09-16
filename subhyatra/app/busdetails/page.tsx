@@ -41,6 +41,7 @@ const BusDetailsMap = dynamic(() => import("@/components/BudgetDetailsMap"), {
   ssr: false,
 });
 import BusDetailsDriverInfo from "@/components/BusDetailsDriverInfo";
+import toast from "react-hot-toast";
 
 // Types
 interface Seat {
@@ -471,7 +472,7 @@ function BusDetailsPageComp() {
         break;
 
       case "error":
-        alert(data.message || "Something went wrong");
+        toast.error(data.message || "Something went wrong");
         break;
 
       default:
@@ -667,7 +668,7 @@ function BusDetailsPageComp() {
           return true;
         }
 
-        alert(
+        toast.error(
           `Seat Already Selected\nThis seat is already selected by ${
             selectedBy?.name || "another user"
           }`,
@@ -675,7 +676,7 @@ function BusDetailsPageComp() {
         return false;
       }
 
-      alert("Failed to select seat. Please try again.");
+      toast.error("Failed to select seat. Please try again.");
       return false;
     }
   };
@@ -703,7 +704,7 @@ function BusDetailsPageComp() {
       return true;
     } catch (error: any) {
       console.error("Error releasing seat:", error);
-      alert("Failed to release seat. Please try again.");
+      toast.error("Failed to release seat. Please try again.");
       return false;
     }
   };
@@ -902,17 +903,17 @@ function BusDetailsPageComp() {
       if (error.response) {
         const status = error.response.status;
         if (status === 401) {
-          alert("Session Expired. Please login again.");
+          toast.error("Session Expired. Please login again.");
           router.push("/");
         } else if (status === 404) {
-          alert("Bus schedule not found.");
+          toast.error("Bus schedule not found.");
         } else {
-          alert(error.response.data?.message || "Failed to fetch bus details.");
+          toast.error(error.response.data?.message || "Failed to fetch bus details.");
         }
       } else if (error.request) {
-        alert("Unable to connect to the server.");
+        toast.error("Unable to connect to the server.");
       } else {
-        alert("An unexpected error occurred.");
+        toast.error("An unexpected error occurred.");
       }
     } finally {
       setIsLoading(false);
@@ -927,7 +928,7 @@ function BusDetailsPageComp() {
 
     // Booked permanently
     if (!seat.available && !seat.selected_by) {
-      alert("This seat is already booked.");
+      toast.error("This seat is already booked.");
       return;
     }
 
@@ -937,7 +938,7 @@ function BusDetailsPageComp() {
       myId != null &&
       Number(seat.selected_by) !== Number(myId)
     ) {
-      alert(
+      toast.error(
         `This seat is currently being selected by ${
           seat.selected_by_name || "another user"
         }`,
@@ -978,15 +979,15 @@ function BusDetailsPageComp() {
       locationWsRef.current.readyState === WebSocket.OPEN
     ) {
       locationWsRef.current.send(JSON.stringify({ type: "get_location" }));
-      alert("Requesting latest location from bus...");
+      toast.error("Requesting latest location from bus...");
       return;
     }
 
     const success = await fetchCurrentLocation();
     if (success) {
-      alert("Bus location has been updated.");
+      toast.error("Bus location has been updated.");
     } else {
-      alert("Could not fetch bus location. Please try again.");
+      toast.error("Could not fetch bus location. Please try again.");
     }
   };
 
@@ -1075,7 +1076,7 @@ function BusDetailsPageComp() {
 
   const handleConfirmBooking = async () => {
     if (selectedSeats.length === 0) {
-      alert("Please select at least one seat.");
+      toast.error("Please select at least one seat.");
       return;
     }
 
@@ -1114,10 +1115,10 @@ function BusDetailsPageComp() {
       console.error("Error creating booking:", error);
       const message = error.response?.data?.message || "Failed to book seats.";
       if (error.response?.status === 401) {
-        alert("Session Expired. Please login again.");
+        toast.error("Session Expired. Please login again.");
         router.push("/login");
       } else {
-        alert(message);
+        toast.error(message);
       }
     } finally {
       setIsBooking(false);

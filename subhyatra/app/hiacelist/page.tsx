@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -328,7 +329,7 @@ const BoardingModal = ({
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-xl p-4 mb-4"
+                      className="bg-linear-to-r from-emerald-600 to-emerald-500 rounded-xl p-4 mb-4"
                     >
                       <div className="flex items-center justify-around">
                         <div className="text-center">
@@ -383,7 +384,7 @@ const BoardingModal = ({
                       isLoadingPrice
                     }
                     className={cn(
-                      "w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-xl py-4 font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25",
+                      "w-full bg-linear-to-r from-emerald-600 to-emerald-500 text-white rounded-xl py-4 font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25",
                       (!selectedBoardingStop ||
                         !selectedDroppingStop ||
                         !pricePerSeat ||
@@ -501,17 +502,17 @@ function HiaceListPageComp() {
       if (error.response) {
         const status = error.response.status;
         if (status === 401) {
-          alert("Session Expired. Please login again.");
+          toast.error("Session Expired. Please login again.");
           router.push("/login");
         } else if (status === 404) {
-          alert("No hiaces available for this route on the selected date.");
+          toast.error("No hiaces available for this route on the selected date.");
         } else {
-          alert(error.response.data?.message || "Failed to fetch hiaces.");
+          toast.error(error.response.data?.message || "Failed to fetch hiaces.");
         }
       } else if (error.request) {
-        alert("Unable to connect to the server.");
+        toast.error("Unable to connect to the server.");
       } else {
-        alert("An unexpected error occurred.");
+        toast.error("An unexpected error occurred.");
       }
     } finally {
       setIsLoading(false);
@@ -592,7 +593,7 @@ function HiaceListPageComp() {
       return null;
     } catch (error) {
       console.error("Error fetching price per seat:", error);
-      alert("Failed to fetch price. Please try again.");
+      toast.error("Failed to fetch price. Please try again.");
       return null;
     } finally {
       setIsLoadingPrice(false);
@@ -669,7 +670,7 @@ function HiaceListPageComp() {
 
     if (boarding && dropping && boarding.id !== dropping.id) {
       if (boarding.stop_order >= dropping.stop_order) {
-        alert("Boarding stop must be before dropping stop.");
+        toast.error("Boarding stop must be before dropping stop.");
         if (type === "dropping") setSelectedDroppingStop(null);
         else setSelectedBoardingStop(null);
         return;
@@ -689,17 +690,17 @@ function HiaceListPageComp() {
   // Handle confirm stops
   const handleConfirmStops = () => {
     if (!selectedBoardingStop || !selectedDroppingStop) {
-      alert("Please select both boarding and dropping stops.");
+      toast.error("Please select both boarding and dropping stops.");
       return;
     }
 
     if (selectedBoardingStop.id === selectedDroppingStop.id) {
-      alert("Boarding and dropping stops cannot be the same.");
+      toast.error("Boarding and dropping stops cannot be the same.");
       return;
     }
 
     if (selectedBoardingStop.stop_order >= selectedDroppingStop.stop_order) {
-      alert("Boarding stop must be before dropping stop.");
+      toast.error("Boarding stop must be before dropping stop.");
       return;
     }
 
@@ -712,7 +713,7 @@ function HiaceListPageComp() {
       );
       setShowBoardingModal(false);
     } else {
-      alert("Unable to fetch price. Please try again.");
+      toast.error("Unable to fetch price. Please try again.");
     }
   };
 
@@ -791,7 +792,7 @@ function HiaceListPageComp() {
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 flex items-center justify-center shadow-md shadow-emerald-500/20 flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-linear-to-r from-emerald-600 to-emerald-500 flex items-center justify-center shadow-md shadow-emerald-500/20 flex-shrink-0">
               <Car className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -893,7 +894,7 @@ function HiaceListPageComp() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => handleBookNow(hiace)}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+            className="bg-linear-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
           >
             Book Now
             <ArrowRight className="w-4 h-4" />
@@ -905,14 +906,14 @@ function HiaceListPageComp() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-emerald-600 to-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/25">
               <Car className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-emerald-600 animate-spin absolute -bottom-2 -right-2" />
@@ -926,7 +927,7 @@ function HiaceListPageComp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -995,7 +996,7 @@ function HiaceListPageComp() {
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
                   selectedFilter === filter
-                    ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                    ? "bg-linear-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/25"
                     : "bg-white/60 text-slate-500 hover:bg-white/80 border border-slate-200/50"
                 )}
               >
@@ -1049,7 +1050,7 @@ function HiaceListPageComp() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={fetchHiaces}
-                className="mt-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-2.5 rounded-xl font-semibold text-sm inline-flex items-center gap-2 shadow-lg shadow-emerald-500/25"
+                className="mt-4 bg-linear-to-r from-emerald-600 to-emerald-500 text-white px-6 py-2.5 rounded-xl font-semibold text-sm inline-flex items-center gap-2 shadow-lg shadow-emerald-500/25"
               >
                 <RefreshCw className="w-4 h-4" />
                 Retry

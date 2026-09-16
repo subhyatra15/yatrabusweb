@@ -33,6 +33,7 @@ import {
   Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 // Types
 interface FAQ {
@@ -260,7 +261,7 @@ export default function HelpSupportPage() {
                   <p className="text-sm text-slate-400">Chat with our support team</p>
                 </div>
                 <button
-                  onClick={() => alert("Chat feature coming soon!")}
+                  onClick={() => toast.error("Chat feature coming soon!")}
                   className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-indigo-700 transition-colors"
                 >
                   Chat Now
@@ -304,7 +305,7 @@ export default function HelpSupportPage() {
               <button
                 onClick={() => {
                   setShowContactModal(false);
-                  alert("Your support request has been submitted!");
+                  toast.error("Your support request has been submitted!");
                 }}
                 className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
               >

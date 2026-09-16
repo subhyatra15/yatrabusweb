@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 // API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://192.168.101.18:8000";
@@ -264,7 +265,7 @@ export default function DriverProfilePage() {
 
   const handleUpdateProfile = async () => {
     if (usingDemoData) {
-      alert("Demo Mode. Changes cannot be saved.");
+      toast.error("Demo Mode. Changes cannot be saved.");
       setShowEditModal(false);
       return;
     }
@@ -274,7 +275,7 @@ export default function DriverProfilePage() {
       const token = localStorage.getItem("accessToken");
       
       if (!token) {
-        alert("Please login to update profile");
+        toast.error("Please login to update profile");
         return;
       }
 
@@ -293,19 +294,19 @@ export default function DriverProfilePage() {
       );
 
       console.log("Update response:", response.data);
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
       setShowEditModal(false);
       fetchProfile();
     } catch (error: any) {
       console.error("Error updating profile:", error);
       
       if (error.response?.data?.message) {
-        alert(error.response.data.message);
+        toast.error(error.response.data.message);
       } else if (error.response?.status === 401) {
-        alert("Session expired. Please login again.");
+        toast.error("Session expired. Please login again.");
         router.push("/");
       } else {
-        alert("Failed to update profile. Please try again.");
+        toast.error("Failed to update profile. Please try again.");
       }
     } finally {
       setIsEditing(false);
@@ -331,7 +332,7 @@ export default function DriverProfilePage() {
           className="text-center"
         >
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
+            <div className="w-20 h-20 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25">
               <User className="w-10 h-10 text-white" />
             </div>
             <Loader2 className="w-8 h-8 text-indigo-600 animate-spin absolute -bottom-2 -right-2" />
@@ -345,7 +346,7 @@ export default function DriverProfilePage() {
 
   if (!profile ) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-indigo-50/30 p-4">
         <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
           <AlertCircle className="w-10 h-10 text-red-400" />
         </div>
@@ -356,7 +357,7 @@ export default function DriverProfilePage() {
         <div className="flex gap-3 mt-4">
           <button
             onClick={fetchProfile}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
+            className="bg-linear-to-r from-indigo-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all"
           >
             Retry
           </button>
@@ -372,7 +373,7 @@ export default function DriverProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/20">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-indigo-50/20">
       {/* Demo Banner */}
       {usingDemoData && (
         <div className="max-w-6xl mx-auto px-4 pt-4">
@@ -412,7 +413,7 @@ export default function DriverProfilePage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 pt-8 pb-10 px-6 rounded-b-[2.5rem] relative overflow-hidden"
+        className="bg-linear-to-r from-indigo-600 via-indigo-700 to-purple-600 pt-8 pb-10 px-6 rounded-b-[2.5rem] relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
@@ -440,7 +441,7 @@ export default function DriverProfilePage() {
               <button
                 onClick={() => {
                   // Image picker functionality would go here
-                  alert("Image picker would open here");
+                  toast.error("Image picker would open here");
                 }}
                 className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-indigo-600 border-2 border-white flex items-center justify-center shadow-lg hover:bg-indigo-700 transition-colors"
               >
@@ -900,7 +901,7 @@ export default function DriverProfilePage() {
                 <button
                   onClick={handleUpdateProfile}
                   disabled={isEditing}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white rounded-xl py-4 font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isEditing ? (
                     <span className="flex items-center justify-center gap-2">

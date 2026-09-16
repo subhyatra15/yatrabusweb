@@ -45,6 +45,7 @@ import {
 import { format } from "date-fns";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 // Types
 interface Bus {
@@ -242,19 +243,19 @@ function BusListPageComp() {
       if (error.response) {
         const status = error.response.status;
         if (status === 401) {
-          alert("Session Expired. Please login again.");
+          toast.error("Session Expired. Please login again.");
           router.push("/login");
         } else if (status === 404) {
-          alert("No buses available for this route on the selected date.");
+          toast.error("No buses available for this route on the selected date.");
         } else {
-          alert(error.response.data?.message || "Failed to fetch buses.");
+          toast.error(error.response.data?.message || "Failed to fetch buses.");
         }
       } else if (error.request) {
-        alert(
+        toast.error(
           "Unable to connect to the server. Please check your internet connection.",
         );
       } else {
-        alert("An unexpected error occurred. Please try again.");
+        toast.error("An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsLoading(false);
@@ -334,7 +335,7 @@ function BusListPageComp() {
       return null;
     } catch (error) {
       console.error("Error fetching price per seat:", error);
-      alert("Failed to fetch price. Please try again.");
+      toast.error("Failed to fetch price. Please try again.");
       return null;
     } finally {
       setIsLoadingPrice(false);
@@ -408,7 +409,7 @@ function BusListPageComp() {
 
     if (boarding && dropping && boarding.id !== dropping.id) {
       if (boarding.stop_order >= dropping.stop_order) {
-        alert("Boarding stop must be before dropping stop.");
+        toast.error("Boarding stop must be before dropping stop.");
         setSelectedDroppingStop(null);
         setPricePerSeat(null);
         return;
@@ -425,20 +426,21 @@ function BusListPageComp() {
     }
   };
 
+
   // Handle confirm stops
   const handleConfirmStops = () => {
     if (!selectedBoardingStop || !selectedDroppingStop) {
-      alert("Please select both boarding and dropping stops.");
+      toast.error("Please select both boarding and dropping stops.");
       return;
     }
 
     if (selectedBoardingStop.id === selectedDroppingStop.id) {
-      alert("Boarding and dropping stops cannot be the same.");
+      toast.error("Boarding and dropping stops cannot be the same.");
       return;
     }
 
     if (selectedBoardingStop.stop_order >= selectedDroppingStop.stop_order) {
-      alert("Boarding stop must be before dropping stop.");
+      toast.error("Boarding stop must be before dropping stop.");
       return;
     }
 
@@ -451,7 +453,7 @@ function BusListPageComp() {
       );
       setShowBoardingModal(false);
     } else {
-      alert("Unable to fetch price. Please try again.");
+      toast.error("Unable to fetch price. Please try again.");
     }
   };
 
