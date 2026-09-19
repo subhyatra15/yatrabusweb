@@ -1,109 +1,30 @@
 export default function PrivacyPolicyPage() {
   return (
-    <main className="privacy-page">
-      <style jsx>{`
-        * {
-          box-sizing: border-box;
-        }
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: "40px 20px",
+        backgroundColor: "#f5f7fa",
+        color: "#222",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        lineHeight: 1.7,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: "900px",
+          margin: "0 auto",
+          padding: "40px",
+          backgroundColor: "#fff",
+          borderRadius: "12px",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+        }}
+      >
+        <h1 style={{ color: "#208AEF" }}>
+          YatraBus Privacy Policy
+        </h1>
 
-        .privacy-page {
-          min-height: 100vh;
-          margin: 0;
-          padding: 40px 20px;
-          font-family: Arial, Helvetica, sans-serif;
-          line-height: 1.7;
-          color: #222;
-          background: #f5f7fa;
-        }
-
-        .container {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 40px;
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        h1 {
-          color: #208aef;
-          margin-bottom: 8px;
-        }
-
-        h2 {
-          color: #1565c0;
-          margin-top: 32px;
-        }
-
-        h3 {
-          color: #333;
-          margin-top: 24px;
-        }
-
-        p {
-          margin: 12px 0;
-        }
-
-        ul {
-          padding-left: 25px;
-        }
-
-        li {
-          margin-bottom: 8px;
-        }
-
-        .updated {
-          color: #666;
-          font-size: 14px;
-          margin-bottom: 30px;
-        }
-
-        .contact {
-          background: #eef7ff;
-          padding: 20px;
-          border-left: 4px solid #208aef;
-          border-radius: 6px;
-          margin-top: 20px;
-        }
-
-        a {
-          color: #1565c0;
-        }
-
-        footer {
-          margin-top: 40px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-          color: #777;
-          font-size: 14px;
-          text-align: center;
-        }
-
-        @media (max-width: 600px) {
-          .privacy-page {
-            padding: 0;
-          }
-
-          .container {
-            margin: 0;
-            padding: 24px 18px;
-            border-radius: 0;
-          }
-
-          h1 {
-            font-size: 28px;
-          }
-
-          h2 {
-            font-size: 21px;
-          }
-        }
-      `}</style>
-
-      <div className="container">
-        <h1>YatraBus Privacy Policy</h1>
-
-        <p className="updated">
+        <p style={{ color: "#666", fontSize: "14px" }}>
           Last updated: September 19, 2026
         </p>
 
@@ -250,8 +171,8 @@ export default function PrivacyPolicyPage() {
 
         <p>
           Information may also be disclosed when required by law, legal
-          process, or to protect the rights, safety, and security of users and
-          our services.
+          process, or to protect the rights, safety, and security of users
+          and our services.
         </p>
 
         <h2>5. Data Retention</h2>
@@ -348,7 +269,15 @@ export default function PrivacyPolicyPage() {
 
         <h2>12. Contact Us</h2>
 
-        <div className="contact">
+        <div
+          style={{
+            backgroundColor: "#eef7ff",
+            padding: "20px",
+            borderLeft: "4px solid #208AEF",
+            borderRadius: "6px",
+            marginTop: "20px",
+          }}
+        >
           <p>
             If you have questions about this Privacy Policy, your personal
             information, or a request for data deletion, please contact us:
@@ -358,13 +287,25 @@ export default function PrivacyPolicyPage() {
             <strong>YatraBus</strong>
             <br />
             Email:{" "}
-            <a href="mailto:subhyatra15@gmail.com">
+            <a
+              href="mailto:subhyatra15@gmail.com"
+              style={{ color: "#1565c0" }}
+            >
               subhyatra15@gmail.com
             </a>
           </p>
         </div>
 
-        <footer>
+        <footer
+          style={{
+            marginTop: "40px",
+            paddingTop: "20px",
+            borderTop: "1px solid #ddd",
+            color: "#777",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
           &copy; 2026 YatraBus. All rights reserved.
         </footer>
       </div>
