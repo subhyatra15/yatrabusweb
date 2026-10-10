@@ -102,8 +102,7 @@ export default function RegisterPage() {
 
       if (response.data && response.data.success) {
         toast.success(
-          "Registration Successful! 🎉",
-          "Your account has been created successfully. Welcome to SubhYatra!"
+          "Registration Successful! 🎉"
         );
         router.push("/");
       } else {
@@ -124,16 +123,14 @@ export default function RegisterPage() {
           toast.error(message);
         } else if (status === 500) {
           toast.error(
-            "Server Error",
-            "Our servers are experiencing issues. Please try again later."
+            "Server Error"
           );
         } else {
           toast.error(message);
         }
       } else if (error.request) {
         toast.error(
-          "Network Error",
-          "Unable to connect to the server. Please check your internet connection and try again."
+          "Network Error"
         );
       } else {
         toast.error(
