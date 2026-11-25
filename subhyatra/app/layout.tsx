@@ -4,6 +4,7 @@ import "./globals.css";
 import toast, { Toaster } from "react-hot-toast";
 
 import LayoutWrapper from "@/components/LayoutWrapper";
+import { GoogleProvider } from "./providers/GoogleProvider";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -45,7 +46,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <LayoutWrapper>
+          <GoogleProvider>
           {children}
+          </GoogleProvider>
           <Toaster position="top-center" />
         </LayoutWrapper>
       </body>

@@ -153,7 +153,7 @@ export default function RegisterPage() {
               <div className="bg-white rounded-xl p-2">
                 <Image
                   src="/eticketlogo.jpeg"
-                  alt="SubhYatra Logo"
+                  alt="YatraBus Logo"
                   width={64}
                   height={64}
                   className="rounded-lg"
@@ -161,7 +161,7 @@ export default function RegisterPage() {
               </div>
             </div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-              SubhYatra
+              YatraBus
             </h1>
             <p className="text-gray-500 font-medium mt-1">
               Create your account and start your journey
@@ -309,7 +309,7 @@ export default function RegisterPage() {
             >
               <div
                 className={cn(
-                  "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0",
+                  "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0",
                   agreeTerms
                     ? "bg-indigo-600 border-indigo-600"
                     : "border-gray-300 bg-white"
